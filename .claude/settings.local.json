@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(npx next *)",
+      "Bash(tasklist /FI \"PID eq 30620\" /V)",
+      "PowerShell(Get-Process -Id 30620 -ErrorAction SilentlyContinue | Select-Object Id, ProcessName, Path, StartTime, @{N='CmdLine';E={\\(Get-CimInstance Win32_Process -Filter \"ProcessId=$\\($_.Id\\)\"\\).CommandLine}} | Format-List)"
+    ]
+  }
+}
