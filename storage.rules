@@ -2,41 +2,46 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Public assets (press thumbnails, achievement/pledge card images, etc.)
-    // 공개 읽기 / 운영자만 쓰기
+    // ─────────────────────────────────────────────
+    // 운영자 이메일 목록 (firestore.rules와 동기화)
+    // ─────────────────────────────────────────────
+    function adminEmails() {
+      return [
+        'greatosan100@gmail.com'
+      ];
+    }
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in adminEmails();
+    }
+
+    function isValidImageUpload() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
     match /press/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null
-                   && request.auth.token.admin == true
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+      allow write: if isAdmin() && isValidImageUpload();
     }
 
     match /achievements/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null
-                   && request.auth.token.admin == true
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+      allow write: if isAdmin() && isValidImageUpload();
     }
 
     match /pledges/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null
-                   && request.auth.token.admin == true
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+      allow write: if isAdmin() && isValidImageUpload();
     }
 
     match /sns/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null
-                   && request.auth.token.admin == true
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+      allow write: if isAdmin() && isValidImageUpload();
     }
 
-    // 그 외 경로 차단
     match /{allPaths=**} {
       allow read, write: if false;
     }

@@ -3,10 +3,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helpers
+    // ─────────────────────────────────────────────
+    // 운영자 이메일 목록
+    // 추가/변경 시 이 배열만 수정하고 콘솔에서 재게시.
+    // ─────────────────────────────────────────────
+    function adminEmails() {
+      return [
+        'greatosan100@gmail.com'
+      ];
+    }
+
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.admin == true;
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in adminEmails();
     }
 
     function nonEmptyString(v, maxLen) {
@@ -18,7 +28,6 @@ service cloud.firestore {
       allow read: if true;
 
       allow create: if
-        // 필드 형식
         nonEmptyString(request.resource.data.nickname, 20)
         && request.resource.data.nickname.matches('^[a-zA-Z][a-zA-Z0-9_]{2,18}[a-zA-Z0-9]$')
         && nonEmptyString(request.resource.data.content, 100)
@@ -27,7 +36,6 @@ service cloud.firestore {
         && request.resource.data.fromGame is bool
         && request.resource.data.createdAt is timestamp;
 
-      // 사용자 측 수정/삭제 차단 — 운영자만
       allow update, delete: if isAdmin();
     }
 
@@ -64,12 +72,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // 설정 (금지어·차단 닉네임·차단 IP 목록 등) — 운영자만 읽기/쓰기
+    // 설정 — 운영자만 읽기/쓰기
     match /settings/{id} {
       allow read, write: if isAdmin();
     }
 
-    // 그 외 경로는 모두 차단
+    // 그 외 경로 차단
     match /{document=**} {
       allow read, write: if false;
     }
