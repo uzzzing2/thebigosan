@@ -35,7 +35,7 @@ gcloud auth application-default login
 node -e "
 const admin = require('firebase-admin');
 admin.initializeApp({ projectId: 'thebigosan' });
-admin.auth().getUserByEmail('raulpark07@gmail.com').then(u =>
+admin.auth().getUserByEmail('greatosan100@gmail.com').then(u =>
   admin.auth().setCustomUserClaims(u.uid, { admin: true })
 ).then(() => console.log('OK')).catch(console.error);
 "
