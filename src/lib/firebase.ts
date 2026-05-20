@@ -35,32 +35,28 @@ export function getFirebaseApp(): FirebaseApp {
       'Firebase is not configured. Set NEXT_PUBLIC_FIREBASE_* env vars in .env.local',
     )
   }
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getApp, getApps, initializeApp } = require('firebase/app') as typeof import('firebase/app')
+const { getApp, getApps, initializeApp } = require('firebase/app') as typeof import('firebase/app')
   _app = getApps().length ? getApp() : initializeApp(firebaseConfig)
   return _app
 }
 
 export function getDb(): Firestore {
   if (_db) return _db
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getFirestore } = require('firebase/firestore') as typeof import('firebase/firestore')
+const { getFirestore } = require('firebase/firestore') as typeof import('firebase/firestore')
   _db = getFirestore(getFirebaseApp())
   return _db
 }
 
 export function getAuthClient(): Auth {
   if (_auth) return _auth
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getAuth } = require('firebase/auth') as typeof import('firebase/auth')
+const { getAuth } = require('firebase/auth') as typeof import('firebase/auth')
   _auth = getAuth(getFirebaseApp())
   return _auth
 }
 
 export function getStorageClient(): FirebaseStorage {
   if (_storage) return _storage
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getStorage } = require('firebase/storage') as typeof import('firebase/storage')
+const { getStorage } = require('firebase/storage') as typeof import('firebase/storage')
   _storage = getStorage(getFirebaseApp())
   return _storage
 }
