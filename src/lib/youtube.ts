@@ -19,12 +19,23 @@ export async function getLatestVideos(n: number = 10): Promise<YoutubeVideo[]> {
   try {
     const res = await fetch(
       `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`,
-      { next: { revalidate: 1800 } },
+      {
+        // `next: { revalidate }` is Next.js-only and breaks the native fetch
+        // call when this code runs on Cloudflare Workers. Use the standard
+        // Cache-Control hint instead — Cloudflare honours that.
+        cf: { cacheEverything: true, cacheTtl: 1800 },
+        headers: { 'User-Agent': 'Mozilla/5.0 OsanCampaignBot/1.0' },
+      } as RequestInit,
     )
-    if (!res.ok) return []
+    if (!res.ok) {
+      console.warn('[youtube] feed fetch returned', res.status)
+      return []
+    }
     const xml = await res.text()
-    return parseAtomEntries(xml).slice(0, n)
-  } catch {
+    const items = parseAtomEntries(xml).slice(0, n)
+    return items
+  } catch (e) {
+    console.warn('[youtube] feed fetch failed', (e as Error)?.message)
     return []
   }
 }
