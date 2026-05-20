@@ -24,6 +24,10 @@ export async function getLatestVideos(n: number = 10): Promise<YoutubeVideo[]> {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
         Accept: 'application/atom+xml,application/xml,text/xml,*/*',
       },
+      // SSG/ISR: cached at build time, refreshed every 1h. This avoids
+      // hitting YouTube from the worker at request time — Cloudflare IPs
+      // get 404'd by YouTube's RSS endpoint.
+      next: { revalidate: 3600 },
     })
     console.log('[youtube] feed fetch status', res.status)
     if (!res.ok) return []
