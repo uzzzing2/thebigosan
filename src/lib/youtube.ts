@@ -24,19 +24,31 @@ export async function getLatestVideos(n: number = 10): Promise<YoutubeVideo[]> {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
         Accept: 'application/atom+xml,application/xml,text/xml,*/*',
       },
-      // SSG/ISR: cached at build time, refreshed every 1h. This avoids
-      // hitting YouTube from the worker at request time — Cloudflare IPs
-      // get 404'd by YouTube's RSS endpoint.
+      // SSG/ISR: cached at build time, refreshed every 1h.
       next: { revalidate: 3600 },
     })
-    console.log('[youtube] feed fetch status', res.status)
-    if (!res.ok) return []
+    if (!res.ok) {
+      console.warn('[youtube] feed fetch status', res.status, '→ using static cache')
+      return (await loadCachedVideos()).slice(0, n)
+    }
     const xml = await res.text()
     const items = parseAtomEntries(xml).slice(0, n)
-    console.log('[youtube] parsed items', items.length)
+    if (items.length === 0) {
+      console.warn('[youtube] parsed 0 items → using static cache')
+      return (await loadCachedVideos()).slice(0, n)
+    }
     return items
   } catch (e) {
-    console.warn('[youtube] feed fetch failed', (e as Error)?.message ?? e)
+    console.warn('[youtube] feed fetch failed', (e as Error)?.message ?? e, '→ using static cache')
+    return (await loadCachedVideos()).slice(0, n)
+  }
+}
+
+async function loadCachedVideos(): Promise<YoutubeVideo[]> {
+  try {
+    const mod = await import('@/lib/data/youtube-cache')
+    return mod.YOUTUBE_VIDEOS
+  } catch {
     return []
   }
 }
