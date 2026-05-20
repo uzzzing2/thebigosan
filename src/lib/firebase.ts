@@ -3,14 +3,32 @@ import type { Firestore } from 'firebase/firestore'
 import type { Auth } from 'firebase/auth'
 import type { FirebaseStorage } from 'firebase/storage'
 
+// NEXT_PUBLIC_* values are inlined at build time. On Cloudflare Workers
+// Builds we don't always get them at build time (only at worker runtime),
+// so we fall back to the hardcoded public Firebase Web SDK config below.
+// These are public by design — they identify the project, not authorize it.
+const PUBLIC_DEFAULTS = {
+  apiKey: 'AIzaSyCiObaKSJ2UgxdnVuOV6TY35WySwC5u0i0',
+  authDomain: 'thebigosan.firebaseapp.com',
+  projectId: 'thebigosan',
+  storageBucket: 'thebigosan.firebasestorage.app',
+  messagingSenderId: '232738600744',
+  appId: '1:232738600744:web:c81feaae09b6251723421d',
+  measurementId: 'G-KWHW8E0QRQ',
+} as const
+
 const firebaseConfig: FirebaseOptions = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || PUBLIC_DEFAULTS.apiKey,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || PUBLIC_DEFAULTS.authDomain,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || PUBLIC_DEFAULTS.projectId,
+  storageBucket:
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || PUBLIC_DEFAULTS.storageBucket,
+  messagingSenderId:
+    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ||
+    PUBLIC_DEFAULTS.messagingSenderId,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || PUBLIC_DEFAULTS.appId,
+  measurementId:
+    process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || PUBLIC_DEFAULTS.measurementId,
 }
 
 /** True when all required env vars are present. */
