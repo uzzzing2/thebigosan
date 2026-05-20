@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useMemo, useState } from 'react'
 import { ACHIEVEMENT_CATEGORIES, achievements, type Achievement } from '@/lib/data/achievements'
 import { Modal, Tag } from '@/components/ui'
@@ -8,6 +9,10 @@ import { cn } from '@/lib/cn'
 type Filter = '전체' | Achievement['category']
 
 const FILTERS: Filter[] = ['전체', ...ACHIEVEMENT_CATEGORIES]
+
+function outcomeImagePath(id: string): string {
+  return `/images/outcome/성과 ${Number(id)}.png`
+}
 
 export function AchievementGrid() {
   const [filter, setFilter] = useState<Filter>('전체')
@@ -45,26 +50,33 @@ export function AchievementGrid() {
         ))}
       </ul>
 
-      <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
         {filtered.map((a) => (
           <li key={a.id}>
             <button
               type="button"
               onClick={() => setActive(a)}
-              className="group flex h-full w-full flex-col gap-4 rounded-2xl bg-white p-6 text-left shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-red-500/20"
+              className="group flex h-full w-full flex-col gap-3 rounded-2xl bg-white p-3 text-left shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-red-500/20 sm:gap-4 sm:p-6"
               aria-label={`${a.title} 상세 보기`}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <Tag tone="red">{a.category}</Tag>
                 <span className="text-caption font-medium text-gray-500">No. {a.id}</span>
               </div>
-              {/* TODO Step 5: replace with actual achievement image (4:3) */}
-              <div className="aspect-[4/3] rounded-lg bg-cream-100" aria-hidden="true" />
+              <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-cream-100">
+                <Image
+                  src={outcomeImagePath(a.id)}
+                  alt=""
+                  fill
+                  sizes="(min-width: 1024px) 360px, (min-width: 640px) 50vw, 50vw"
+                  className="object-cover"
+                />
+              </div>
               <div>
-                <h3 className="text-heading-3 text-gray-900 group-hover:text-red-500">
+                <h3 className="text-body font-bold text-gray-900 group-hover:text-red-500 sm:text-heading-3 sm:font-bold">
                   {a.title}
                 </h3>
-                <p className="mt-2 text-body-small text-gray-700">{a.desc}</p>
+                <p className="mt-1.5 text-body-small text-gray-700 sm:mt-2">{a.desc}</p>
               </div>
             </button>
           </li>
@@ -80,7 +92,15 @@ export function AchievementGrid() {
       >
         {active && (
           <div className="space-y-5">
-            <div className="aspect-[16/10] w-full rounded-xl bg-cream-100" aria-hidden="true" />
+            <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-cream-100">
+              <Image
+                src={outcomeImagePath(active.id)}
+                alt=""
+                fill
+                sizes="(min-width: 1024px) 700px, 90vw"
+                className="object-cover"
+              />
+            </div>
             <div className="flex items-center gap-2">
               <Tag tone="red">{active.category}</Tag>
               <span className="text-caption text-gray-500">No. {active.id}</span>

@@ -13,6 +13,7 @@ import {
   CheerRateLimitError,
   writeCheer,
 } from '@/lib/firestore/cheers'
+import { getStoredNickname, setStoredNickname } from '@/app/cheers/useStoredNickname'
 
 export interface CheerWriteModalProps {
   open: boolean
@@ -36,8 +37,12 @@ export function CheerWriteModal({ open, onOpenChange, onSubmitted }: CheerWriteM
 
   const content = watch('content') ?? ''
 
+  // Prefill nickname from localStorage when modal opens
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      const saved = getStoredNickname()
+      if (saved) reset({ nickname: saved, content: '', agree: false as unknown as true })
+    } else {
       const t = setTimeout(() => reset(), 200)
       return () => clearTimeout(t)
     }
@@ -49,6 +54,8 @@ export function CheerWriteModal({ open, onOpenChange, onSubmitted }: CheerWriteM
         nickname: values.nickname,
         content: values.content,
       })
+      // Remember/update nickname for next time
+      setStoredNickname(values.nickname)
       onSubmitted?.(cheer)
       toast.success('응원이 등록되었어요', { description: '소중한 한마디 감사합니다.' })
       onOpenChange(false)
@@ -77,8 +84,8 @@ export function CheerWriteModal({ open, onOpenChange, onSubmitted }: CheerWriteM
         <Input
           label="닉네임"
           requiredMark
-          helper="영문으로 시작 · 영문/숫자/언더스코어(_) · 4~20자"
-          placeholder="osan_2026"
+          helper="한글·영문으로 시작 · 한글/영문/숫자/언더스코어(_) · 4~20자"
+          placeholder="osan_2026 또는 오산시민"
           autoComplete="off"
           inputMode="text"
           error={errors.nickname?.message}
@@ -90,8 +97,8 @@ export function CheerWriteModal({ open, onOpenChange, onSubmitted }: CheerWriteM
           requiredMark
           placeholder="내용을 입력해주세요..."
           rows={5}
-          counter={{ current: content.length, max: 100 }}
-          maxLength={100}
+          counter={{ current: content.length, max: 500 }}
+          maxLength={500}
           error={errors.content?.message}
           {...register('content')}
         />

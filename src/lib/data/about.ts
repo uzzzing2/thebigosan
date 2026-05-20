@@ -10,6 +10,7 @@ export interface TimelineItem {
   items: string[]
 }
 
+/** 약력 — 후보 본인의 경력·학력 (행정대상 등 성과는 achievements로 분리) */
 export const timeline: TimelineItem[] = [
   { year: '2026', items: ['제9회 전국동시지방선거 오산시장 후보'] },
   {
@@ -17,16 +18,36 @@ export const timeline: TimelineItem[] = [
     items: ['제8회 전국동시지방선거 오산시장 당선', '민선 8기 1,800억 국·도비 확보'],
   },
   {
-    year: '2023',
-    items: ['대한민국 지방자치단체 행정대상', '대한민국 자치대상 기초단체장부문'],
-  },
-  { year: '2024~26', items: ['3년 연속 공약이행평가 최우수(SA)'] },
-  {
     year: '현재',
     items: ['오산대학교 명예교수', '한신대 평화교양대학 초빙특강교수'],
   },
   { year: '학력', items: ['연세대학교 행정대학원 졸업 (행정학 석사)'] },
   { year: '1993', items: ['오산 거주 시작 (33년)'] },
+]
+
+export interface Achievement {
+  year: string
+  category: string
+  title: string
+}
+
+/** 주요 성과 — 외부 평가/수상 */
+export const achievements: Achievement[] = [
+  {
+    year: '2023',
+    category: '대한민국 지방자치단체',
+    title: '행정대상',
+  },
+  {
+    year: '2023',
+    category: '대한민국 자치대상',
+    title: '기초단체장부문',
+  },
+  {
+    year: '2024 ~ 2026',
+    category: '공약이행평가',
+    title: '3년 연속 최우수(SA)',
+  },
 ]
 
 export interface VisionCard {

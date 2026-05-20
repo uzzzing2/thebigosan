@@ -1,59 +1,78 @@
+import Image from 'next/image'
 import Link from 'next/link'
-import { Carousel, Reveal } from '@/components/ui'
+import { Carousel, Reveal, SnsIcon } from '@/components/ui'
 import { SNS_LINKS } from '@/lib/constants'
+import { INSTAGRAM_POSTS, type InstagramPost } from '@/lib/data/instagram'
+import { formatVideoDate, formatViews, getLatestVideos, type YoutubeVideo } from '@/lib/youtube'
 
-/* Mock data — replaced in Step 8 with YouTube Data API + Firestore snsCuration */
-const MOCK_YOUTUBE = [
-  { id: 'y1', title: '세교3지구 재지정, 14년 3개월의 약속을 지키다', date: '2026.05.12', views: '12,431' },
-  { id: 'y2', title: 'GTX-C 오산 연장, 시민의 발이 되겠습니다', date: '2026.05.08', views: '8,902' },
-  { id: 'y3', title: '운암뜰 AI시티, 오산의 미래입니다', date: '2026.05.03', views: '6,521' },
-  { id: 'y4', title: '청년·신혼부부 공공주택 2,500호 공급 계획', date: '2026.04.28', views: '5,308' },
-] as const
+const VISIBLE_INSTAGRAM = INSTAGRAM_POSTS.slice(0, 8)
 
-const MOCK_INSTAGRAM = [
-  { id: 'i1', caption: '오색시장 현장에서', date: '2026.05.14' },
-  { id: 'i2', caption: '세교2지구 주민과의 만남', date: '2026.05.11' },
-  { id: 'i3', caption: '청년정책 간담회', date: '2026.05.07' },
-  { id: 'i4', caption: '아이드림센터 방문', date: '2026.05.02' },
-] as const
-
-function YoutubeCard({ item }: { item: (typeof MOCK_YOUTUBE)[number] }) {
+function YoutubeCard({ item }: { item: YoutubeVideo }) {
+  const views = formatViews(item.views)
   return (
     <a
-      href="#"
+      href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block h-full rounded-2xl bg-white shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg"
+      aria-label={`유튜브: ${item.title}`}
+      className="block h-full overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg"
     >
-      <div className="aspect-video rounded-t-2xl bg-cream-100" aria-hidden="true" />
+      <div className="relative aspect-video bg-cream-100">
+        <Image
+          src={item.thumbnail}
+          alt=""
+          fill
+          sizes="(min-width: 1024px) 240px, 70vw"
+          className="object-cover"
+        />
+      </div>
       <div className="p-4">
         <p className="truncate-2 text-body font-medium text-gray-900">{item.title}</p>
         <p className="mt-2 text-caption text-gray-500">
-          {item.date} · 조회 {item.views}
+          {formatVideoDate(item.published)}
+          {views ? ` · 조회 ${views}` : ''}
         </p>
       </div>
     </a>
   )
 }
 
-function InstagramCard({ item }: { item: (typeof MOCK_INSTAGRAM)[number] }) {
+function InstagramCard({ post, index }: { post: InstagramPost; index: number }) {
   return (
     <a
-      href="#"
+      href={post.url}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`인스타그램 - ${item.caption}`}
-      className="block h-full overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg"
+      aria-label={`인스타그램 게시물 ${index + 1} 새 창에서 열기`}
+      className="group relative block overflow-hidden rounded-2xl shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg"
     >
-      <div className="aspect-square bg-cream-100" aria-hidden="true" />
-      <div className="p-3">
-        <p className="truncate-1 text-caption text-gray-500">{item.date}</p>
+      <div
+        aria-hidden="true"
+        className="flex aspect-square items-center justify-center bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#F77737] text-white"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          className="h-10 w-10 opacity-90"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="5" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+        </svg>
+      </div>
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2.5">
+        <p className="text-caption font-medium text-white">최신 #{index + 1}</p>
       </div>
     </a>
   )
 }
 
-export function SnsSection() {
+export async function SnsSection() {
+  const videos = await getLatestVideos(10)
+
   return (
     <section
       aria-labelledby="sns-heading"
@@ -85,23 +104,23 @@ export function SnsSection() {
             </div>
           </Reveal>
 
-          {/* Mobile: swipe carousel (1.5 visible) / Desktop: 4-column grid */}
+          {/* Mobile: swipe carousel (1.5 visible) / Desktop: 5-column grid (10 = 2 rows) */}
           <div className="lg:hidden">
             <Carousel
               ariaLabel="유튜브 최신 영상"
-              slidesPerView={{ mobile: 1.5, tablet: 2 }}
+              slidesPerView={{ mobile: 1.5, tablet: 2.5 }}
               autoplayMs={0}
               arrows={false}
               loop={false}
               dots={false}
             >
-              {MOCK_YOUTUBE.map((v) => (
+              {videos.map((v) => (
                 <YoutubeCard key={v.id} item={v} />
               ))}
             </Carousel>
           </div>
-          <ul className="hidden gap-4 lg:grid lg:grid-cols-4">
-            {MOCK_YOUTUBE.map((v) => (
+          <ul className="hidden gap-4 lg:grid lg:grid-cols-5">
+            {videos.map((v) => (
               <li key={v.id}>
                 <YoutubeCard item={v} />
               </li>
@@ -109,24 +128,30 @@ export function SnsSection() {
           </ul>
         </div>
 
-        {/* Instagram */}
+        {/* Instagram — 임시 숨김 (썸네일 API 연결 전까지)
         <div className="mt-16">
           <Reveal>
             <div className="mb-5 flex items-center justify-between">
               <h3 className="text-heading-3 text-gray-900">인스타그램</h3>
-              <Link href="#" target="_blank" rel="noopener noreferrer" className="btn-text">
+              <Link
+                href="https://www.instagram.com/with5340/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-text"
+              >
                 더보기 →
               </Link>
             </div>
           </Reveal>
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {MOCK_INSTAGRAM.map((p) => (
+            {VISIBLE_INSTAGRAM.map((p, i) => (
               <li key={p.id}>
-                <InstagramCard item={p} />
+                <InstagramCard post={p} index={i} />
               </li>
             ))}
           </ul>
         </div>
+        */}
 
         {/* All SNS channels */}
         <Reveal>
@@ -143,9 +168,7 @@ export function SnsSection() {
                     className="inline-flex h-12 w-12 items-center justify-center rounded-full text-white transition-transform hover:-translate-y-0.5"
                     style={{ backgroundColor: sns.color }}
                   >
-                    <span aria-hidden="true" className="text-sm font-bold">
-                      {sns.label[0]}
-                    </span>
+                    <SnsIcon name={sns.name} />
                   </a>
                 </li>
               ))}

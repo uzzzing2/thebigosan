@@ -31,7 +31,7 @@ export function MatchTab() {
   function toggleField(f: SurveyField) {
     setFields((prev) => {
       if (prev.includes(f)) return prev.filter((x) => x !== f)
-      if (prev.length >= 3) return prev
+      if (prev.length >= 5) return prev
       return [...prev, f]
     })
   }
@@ -101,12 +101,12 @@ export function MatchTab() {
               관심 있는 분야를 선택해주세요
             </legend>
             <p className="mt-3 text-body text-gray-700">
-              복수 선택, 최대 3개 ({fields.length}/3)
+              복수 선택, 최대 5개 ({fields.length}/5)
             </p>
             <ul className="mt-8 grid gap-3 grid-cols-2 sm:grid-cols-4">
               {SURVEY_FIELDS.map((f) => {
                 const checked = fields.includes(f)
-                const disabled = !checked && fields.length >= 3
+                const disabled = !checked && fields.length >= 5
                 return (
                   <li key={f}>
                     <label

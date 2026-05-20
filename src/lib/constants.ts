@@ -31,7 +31,8 @@ export const CONTACT = {
 
 export const SNS_LINKS = [
   { name: 'youtube', label: '유튜브', url: 'https://www.youtube.com/@with5340', color: '#FF0000' },
-  { name: 'instagram', label: '인스타그램', url: '#', color: '#E4405F' },
-  { name: 'facebook', label: '페이스북', url: '#', color: '#1877F2' },
-  { name: 'blog', label: '네이버 블로그', url: '#', color: '#03C75A' },
+  { name: 'instagram', label: '인스타그램', url: 'https://www.instagram.com/with5340/', color: '#E4405F' },
+  { name: 'facebook', label: '페이스북', url: 'https://www.facebook.com/with5340', color: '#1877F2' },
+  { name: 'blog', label: '네이버 블로그', url: 'https://blog.naver.com/with5340', color: '#03C75A' },
+  { name: 'home', label: '오산시장실', url: 'https://www.osan.go.kr/mayor/main.do', color: '#0081CC' },
 ] as const

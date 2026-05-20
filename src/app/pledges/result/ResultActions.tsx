@@ -61,7 +61,7 @@ export function ResultActions({
       </Link>
       <button
         type="button"
-        onClick={() => router.push('/pledges')}
+        onClick={() => router.push(`/pledges?tab=match&reset=${Date.now()}`)}
         className="btn-secondary"
       >
         다시 하기

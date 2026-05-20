@@ -12,15 +12,15 @@ export function CoreTab() {
           지킨 약속 위에, 더 큰 완성으로!
         </p>
       </div>
-      <ul className="mt-12 grid gap-6 md:grid-cols-2">
+      <ul className="mt-10 grid gap-4 sm:grid-cols-2 sm:gap-6">
         {corePledges.map((pledge) => (
           <li key={pledge.id}>
-            <article className="h-full rounded-2xl bg-white p-8 shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg">
-              <p className="text-display-2 font-extrabold leading-none text-red-500">
+            <article className="h-full rounded-2xl bg-white p-5 shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg md:p-8">
+              <p className="text-[36px] font-extrabold leading-none text-red-500 md:text-display-2">
                 {pledge.id}
               </p>
-              <h3 className="mt-5 text-heading-3 text-gray-900">{pledge.title}</h3>
-              <div className="mt-5">
+              <h3 className="mt-3 text-body-large text-gray-900 md:mt-5 md:text-heading-3">{pledge.title}</h3>
+              <div className="mt-3 md:mt-5">
                 <Tag tone="blue">{pledge.category}</Tag>
               </div>
             </article>

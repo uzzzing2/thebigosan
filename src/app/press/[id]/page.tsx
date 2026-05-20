@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Tag } from '@/components/ui'
@@ -50,7 +51,17 @@ export default async function PressDetailPage({ params }: Params) {
           </p>
         </header>
 
-        <div className="mt-10 aspect-video w-full rounded-2xl bg-cream-100" aria-hidden="true" />
+        <div className="relative mt-10 aspect-video w-full overflow-hidden rounded-2xl bg-cream-100">
+          {item.thumbnail && (
+            <Image
+              src={item.thumbnail}
+              alt=""
+              fill
+              sizes="(min-width: 1024px) 800px, 90vw"
+              className="object-cover"
+            />
+          )}
+        </div>
 
         {item.body && (
           <div

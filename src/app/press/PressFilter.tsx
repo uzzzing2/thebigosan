@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { Tag } from '@/components/ui'
 import { cn } from '@/lib/cn'
@@ -61,8 +62,17 @@ export function PressFilter({ items }: { items: PressItem[] }) {
                 href={`/press/${p.id}`}
                 className="block h-full overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg"
               >
-                {/* TODO Step 5: replace with actual thumbnail */}
-                <div className="aspect-video bg-cream-100" aria-hidden="true" />
+                <div className="relative aspect-video bg-cream-100">
+                  {p.thumbnail && (
+                    <Image
+                      src={p.thumbnail}
+                      alt=""
+                      fill
+                      sizes="(min-width: 1024px) 360px, (min-width: 768px) 50vw, 100vw"
+                      className="object-cover"
+                    />
+                  )}
+                </div>
                 <div className="space-y-3 p-5">
                   <Tag tone={p.category === '정책' ? 'blue' : 'red'}>{p.category}</Tag>
                   <h2 className="truncate-2 text-body-large text-gray-900">{p.title}</h2>

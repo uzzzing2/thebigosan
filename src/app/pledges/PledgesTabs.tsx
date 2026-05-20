@@ -1,5 +1,7 @@
 'use client'
 
+import { Suspense, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
 import { CoreTab } from './CoreTab'
 import { FieldTab } from './FieldTab'
@@ -13,9 +15,28 @@ const TABS = [
   { value: 'match', label: '내게 맞는 공약' },
 ] as const
 
-export function PledgesTabs() {
+type TabValue = (typeof TABS)[number]['value']
+
+function PledgesTabsInner() {
+  const router = useRouter()
+  const params = useSearchParams()
+  const tabParam = params.get('tab')
+  const tab: TabValue = (TABS.find((t) => t.value === tabParam)?.value ?? 'core')
+  // `reset` 시그널이 바뀔 때마다 MatchTab을 remount해서 설문 초기화
+  const resetKey = params.get('reset') ?? ''
+
+  const onTabChange = useCallback(
+    (v: string) => {
+      const next = new URLSearchParams(params.toString())
+      next.set('tab', v)
+      next.delete('reset')
+      router.replace(`?${next.toString()}`, { scroll: false })
+    },
+    [params, router],
+  )
+
   return (
-    <Tabs defaultValue="core" className="w-full">
+    <Tabs value={tab} onValueChange={onTabChange} className="w-full">
       <TabsList className="mb-12">
         {TABS.map((t) => (
           <TabsTrigger key={t.value} value={t.value}>
@@ -34,8 +55,16 @@ export function PledgesTabs() {
         <DistrictTab />
       </TabsContent>
       <TabsContent value="match">
-        <MatchTab />
+        <MatchTab key={`match-${resetKey}`} />
       </TabsContent>
     </Tabs>
+  )
+}
+
+export function PledgesTabs() {
+  return (
+    <Suspense fallback={null}>
+      <PledgesTabsInner />
+    </Suspense>
   )
 }

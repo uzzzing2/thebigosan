@@ -1,7 +1,16 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Tag } from '@/components/ui'
-import { corePledges, districtPledges, type DistrictName } from '@/lib/data/pledges'
+import {
+  corePledges,
+  districtPledges,
+  getFieldPledgesBySurveyFields,
+  SURVEY_AGES,
+  type DistrictName,
+  type SurveyAge,
+  type SurveyField,
+} from '@/lib/data/pledges'
+import { ResultHeadline } from './NicknameGreeting'
 import { ResultActions } from './ResultActions'
 
 export const metadata: Metadata = {
@@ -27,8 +36,23 @@ export default function ResultPage({
   const district = isDistrict(districtParam) ? districtParam : null
   const districtData = district ? districtPledges[district] : null
 
-  // 단순한 매칭 로직 — Step 7에서 분야 태그와 매핑 규칙 세부 조정 예정
-  const matchedCore = corePledges
+  const selectedFields = fields as SurveyField[]
+  const selectedAge: SurveyAge | null = (SURVEY_AGES as readonly string[]).includes(age ?? '')
+    ? ((age as SurveyAge) ?? null)
+    : null
+
+  const matchedCore = corePledges.filter((p) => {
+    if (selectedFields.length > 0) {
+      const fieldOk = p.surveyFields.some((f) => selectedFields.includes(f))
+      if (!fieldOk) return false
+    }
+    if (selectedAge) {
+      // ages 없으면 모든 연령 대상 — 통과. 있으면 선택 연령 포함해야 함.
+      if (p.ages && p.ages.length > 0 && !p.ages.includes(selectedAge)) return false
+    }
+    return true
+  })
+  const matchedFieldItems = getFieldPledgesBySurveyFields(selectedFields, selectedAge)
 
   return (
     <div id="result-capture">
@@ -37,14 +61,9 @@ export default function ResultPage({
           <p className="text-base font-medium text-red-500">
             🎯 맞춤 공약 결과
           </p>
-          <h1 className="mt-3 text-[32px] font-extrabold tracking-[-0.02em] text-gray-900 md:text-display-2">
-            {district ?? '시민'}님께 추천드리는
-            <br />
-            공약입니다
-          </h1>
+          <ResultHeadline fallback={district ?? '시민'} />
           <p className="mt-4 text-body-large text-gray-700">
-            거주 동{fields.length > 0 ? '·관심 분야' : ''}
-            {age ? '·연령대' : ''}를 고려했어요
+            거주 동{fields.length > 0 ? '·관심 분야' : ''}를 고려했어요
             {fields.length > 0 && (
               <>
                 <br />
@@ -54,7 +73,6 @@ export default function ResultPage({
                       {f}
                     </Tag>
                   ))}
-                  {age && <Tag tone="gray">{age}</Tag>}
                 </span>
               </>
             )}
@@ -107,6 +125,35 @@ export default function ResultPage({
               ))}
             </ul>
           </section>
+
+          {matchedFieldItems.length > 0 && (
+            <section aria-labelledby="result-field">
+              <h2 id="result-field" className="text-heading-2 text-gray-900">
+                🎯 관심 분야 공약
+                <span className="ml-2 text-body font-medium text-red-500">
+                  {matchedFieldItems.length}개
+                </span>
+              </h2>
+              <ul className="mt-6 grid gap-3 md:grid-cols-2">
+                {matchedFieldItems.map((item, i) => (
+                  <li
+                    key={`${item.title}-${i}`}
+                    className="flex flex-col gap-2 rounded-xl bg-cream-50 px-4 py-4"
+                  >
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {item.surveyFields.map((sf) => (
+                        <Tag key={sf} tone="red">
+                          {sf}
+                        </Tag>
+                      ))}
+                      <span className="text-caption text-gray-500">· {item.subtitle}</span>
+                    </div>
+                    <p className="text-body text-gray-900">{item.title}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <p className="rounded-2xl bg-cream-100 p-5 text-body text-gray-700">
             📌 결과는 참고용입니다. 모든 공약은 동등합니다.

@@ -29,14 +29,27 @@ service cloud.firestore {
 
       allow create: if
         nonEmptyString(request.resource.data.nickname, 20)
-        && request.resource.data.nickname.matches('^[a-zA-Z][a-zA-Z0-9_]{2,18}[a-zA-Z0-9]$')
-        && nonEmptyString(request.resource.data.content, 100)
+        && request.resource.data.nickname.matches('^[a-zA-Z가-힣][a-zA-Z0-9가-힣_]{2,18}[a-zA-Z0-9가-힣]$')
+        && nonEmptyString(request.resource.data.content, 500)
         && request.resource.data.reports == 0
         && request.resource.data.isHidden == false
         && request.resource.data.fromGame is bool
         && request.resource.data.createdAt is timestamp;
 
-      allow update, delete: if isAdmin();
+      // 누구나 likes 필드만 ±1 토글 가능
+      allow update: if
+        isAdmin()
+        || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
+          && request.resource.data.likes is int
+          && request.resource.data.likes >= 0
+          && (
+            request.resource.data.likes - resource.data.get('likes', 0) == 1
+            || request.resource.data.likes - resource.data.get('likes', 0) == -1
+          )
+        );
+
+      allow delete: if isAdmin();
     }
 
     // 신고 — 누구나 작성, 공개 읽기 차단

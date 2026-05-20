@@ -1,21 +1,11 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import { CountUp, Reveal } from '@/components/ui'
 import { CheerWriteTrigger } from '@/components/cheers/CheerWriteTrigger'
-
-/* Mock data — replaced in Step 8 with Firestore `cheers` collection */
-const MOCK_CHEERS = [
-  { id: 'm1', nickname: 'osan_2026', content: '더 큰 오산을 위해 함께하겠습니다!' },
-  { id: 'm2', nickname: 'sema_dad', content: '세교 3지구 다시 움직여서 너무 감사합니다.' },
-  { id: 'm3', nickname: 'mom_yj', content: '아이 키우기 좋은 도시로 만들어주세요.' },
-  { id: 'm4', nickname: 'jung_ang', content: '오색시장 살아나는 거 보고 응원하게 됐어요.' },
-  { id: 'm5', nickname: 'young_osan', content: '청년 주택 공약 꼭 지켜주세요!' },
-  { id: 'm6', nickname: 'commuter_88', content: 'GTX-C 연장, 진심 부탁드립니다.' },
-  { id: 'm7', nickname: 'teacher_kim', content: '학교 시설 개선 정말 체감되고 있어요.' },
-  { id: 'm8', nickname: 'sinjang_2', content: '세교 2지구 학생인데 도서관 기대돼요.' },
-  { id: 'm9', nickname: 'silver_lee', content: '경로당 새로 지어주셔서 감사합니다.' },
-  { id: 'm10', nickname: 'daewon_1', content: '동부대로 지하화 1단계 정말 시원해요.' },
-] as const
-
-const MOCK_COUNT = 1234
+import type { Cheer } from '@/lib/data/cheers'
+import { isFirebaseConfigured } from '@/lib/firebase'
+import { countCheers, listenTopCheers } from '@/lib/firestore/cheers'
 
 function CheerCard({ nickname, content }: { nickname: string; content: string }) {
   return (
@@ -30,9 +20,32 @@ function CheerCard({ nickname, content }: { nickname: string; content: string })
 }
 
 export function MarqueeSection() {
-  const top = [...MOCK_CHEERS, ...MOCK_CHEERS]
-  const bottom = [...MOCK_CHEERS].reverse()
-  const bottomLoop = [...bottom, ...bottom]
+  const [items, setItems] = useState<Cheer[]>([])
+  const [count, setCount] = useState<number>(0)
+
+  useEffect(() => {
+    if (!isFirebaseConfigured) return
+    return listenTopCheers((live) => setItems(live), 20)
+  }, [])
+
+  useEffect(() => {
+    if (!isFirebaseConfigured) return
+    let cancelled = false
+    countCheers()
+      .then((n) => {
+        if (!cancelled) setCount(n)
+      })
+      .catch(() => {
+        // keep last good count
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [items.length])
+
+  const topRow = items.length > 0 ? [...items, ...items] : []
+  const reversed = [...items].reverse()
+  const bottomRow = reversed.length > 0 ? [...reversed, ...reversed] : []
 
   return (
     <section
@@ -47,23 +60,25 @@ export function MarqueeSection() {
           함께하는 시민들의 한마디
         </h2>
         <p className="mt-3 text-body md:text-body-large text-gray-700">
-          <CountUp to={MOCK_COUNT} className="font-bold text-red-500" />
+          <CountUp to={count} className="font-bold text-red-500" />
           명의 시민이 응원을 보냈어요
         </p>
       </Reveal>
 
-      <div className="group mt-10 space-y-4 overflow-hidden">
-        <div className="flex w-max animate-marqueeLeft group-hover:[animation-play-state:paused]">
-          {top.map((cheer, i) => (
-            <CheerCard key={`top-${cheer.id}-${i}`} nickname={cheer.nickname} content={cheer.content} />
-          ))}
+      {items.length > 0 && (
+        <div className="group mt-10 space-y-4 overflow-hidden">
+          <div className="flex w-max animate-marqueeLeft group-hover:[animation-play-state:paused]">
+            {topRow.map((cheer, i) => (
+              <CheerCard key={`top-${cheer.id}-${i}`} nickname={cheer.nickname} content={cheer.content} />
+            ))}
+          </div>
+          <div className="flex w-max animate-marqueeRight group-hover:[animation-play-state:paused]">
+            {bottomRow.map((cheer, i) => (
+              <CheerCard key={`bot-${cheer.id}-${i}`} nickname={cheer.nickname} content={cheer.content} />
+            ))}
+          </div>
         </div>
-        <div className="flex w-max animate-marqueeRight group-hover:[animation-play-state:paused]">
-          {bottomLoop.map((cheer, i) => (
-            <CheerCard key={`bot-${cheer.id}-${i}`} nickname={cheer.nickname} content={cheer.content} />
-          ))}
-        </div>
-      </div>
+      )}
 
       <div className="container-base mt-10 flex justify-center">
         <CheerWriteTrigger>응원 한마디 남기기 →</CheerWriteTrigger>

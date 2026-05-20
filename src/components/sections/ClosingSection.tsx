@@ -25,27 +25,26 @@ export function ClosingSection() {
           </Reveal>
 
           <Reveal className="order-1 lg:order-2" delay={0.1}>
-            <div className="flex items-center gap-3">
-              <Image
-                src="/images/logo.png"
-                alt=""
-                width={56}
-                height={56}
-                className="h-14 w-14 object-contain"
-              />
-              <p className="text-base font-medium text-gray-700 md:text-body-large">
-                국민의힘 오산시장 후보
-              </p>
-            </div>
-            <p className="mt-4 text-heading-2 font-bold text-gray-900">{CANDIDATE.name}</p>
-            <h2
-              id="closing-heading"
-              className="mt-6 text-[40px] font-extrabold leading-[1.2] tracking-[-0.02em] text-gray-900 md:text-display-2 lg:text-display-1"
-            >
-              시민과 함께
-              <br />
-              <span className="text-red-500">더 큰</span> 오산으로!
+            <p className="text-base font-medium text-gray-700 md:text-body-large">
+              국민의힘 오산시장 후보
+            </p>
+            <Image
+              src="/images/logo-simple.png"
+              alt={`${CANDIDATE.name} ${CANDIDATE.campName}`}
+              width={520}
+              height={245}
+              className="mt-4 h-auto w-full max-w-[280px] md:max-w-[320px]"
+            />
+            <h2 id="closing-heading" className="sr-only">
+              {SLOGAN.main}
             </h2>
+            <Image
+              src="/images/slogan.png"
+              alt={SLOGAN.main}
+              width={620}
+              height={260}
+              className="mt-6 h-auto w-full max-w-[340px] md:max-w-[420px] lg:max-w-[480px]"
+            />
             <p className="mt-4 text-body-large text-gray-700">{SLOGAN.tagging}</p>
 
             <div className="mt-8 flex flex-wrap gap-3">

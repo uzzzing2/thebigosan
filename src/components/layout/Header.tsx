@@ -51,19 +51,16 @@ export function Header() {
         <Link
           href="/"
           aria-label={`${CANDIDATE.name} ${CANDIDATE.campName} 홈으로`}
-          className="flex items-center gap-2"
+          className="flex items-center"
         >
           <Image
-            src="/images/logo.png"
-            alt=""
-            width={40}
-            height={40}
+            src="/images/logo-header.png"
+            alt={`${CANDIDATE.name} ${CANDIDATE.campName}`}
+            width={615}
+            height={195}
             priority
-            className="h-9 w-9 object-contain md:h-10 md:w-10"
+            className="h-10 w-auto object-contain md:h-12"
           />
-          <span className="text-base font-bold text-gray-900 md:text-body-large">
-            이권재 더큰오산
-          </span>
         </Link>
 
         <nav className="hidden md:block" aria-label="주요 메뉴">

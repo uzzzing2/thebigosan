@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { Carousel, Reveal, Tag } from '@/components/ui'
 import { achievements } from '@/lib/data/achievements'
@@ -8,30 +9,51 @@ const HIGHLIGHT_COUNT = 7
 const featuredAchievements = achievements.slice(0, HIGHLIGHT_COUNT)
 const featuredPledges = corePledges.slice(0, HIGHLIGHT_COUNT)
 
+function outcomeImagePath(id: string): string {
+  return `/images/outcome/성과 ${Number(id)}.png`
+}
+
 function PreviewCard({
   badge,
   badgeTone,
   numbering,
   title,
   desc,
+  imageUrl,
 }: {
   badge: string
   badgeTone: 'red' | 'blue'
   numbering: string
   title: string
   desc?: string
+  imageUrl?: string
 }) {
   return (
-    <article className="flex h-full flex-col gap-4 rounded-2xl bg-white p-6 shadow-md">
-      <div className="flex items-center justify-between">
+    <article className="flex h-full flex-col gap-3 rounded-2xl bg-white p-4 shadow-md md:gap-4 md:p-6">
+      <div className="flex items-center justify-between gap-2">
         <Tag tone={badgeTone}>{badge}</Tag>
         <span className="text-caption font-medium text-gray-500">No. {numbering}</span>
       </div>
-      {/* TODO: replace with actual highlight image when assets arrive */}
-      <div className="aspect-[4/3] rounded-lg bg-cream-100" aria-hidden="true" />
-      <div>
-        <h3 className="text-heading-3 text-gray-900">{title}</h3>
-        {desc && <p className="mt-2 text-body-small text-gray-700">{desc}</p>}
+      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-lg bg-cream-100">
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt=""
+            fill
+            sizes="(min-width: 1024px) 480px, 85vw"
+            className="object-cover"
+          />
+        ) : (
+          <span className="text-body-small text-gray-500">이미지 준비중</span>
+        )}
+      </div>
+      <div className="min-w-0">
+        <h3 className="truncate-2 text-body-large font-bold text-gray-900 md:text-heading-3">
+          {title}
+        </h3>
+        {desc && (
+          <p className="truncate-2 mt-1.5 text-body-small text-gray-700 md:mt-2">{desc}</p>
+        )}
       </div>
     </article>
   )
@@ -41,7 +63,7 @@ export function HighlightsSection() {
   return (
     <section
       aria-labelledby="highlights-heading"
-      className="bg-cream-50 py-16 md:py-20 lg:py-24"
+      className="bg-cream-50 py-10 md:py-20 lg:py-24"
     >
       <div className="container-base">
         <Reveal>
@@ -55,12 +77,12 @@ export function HighlightsSection() {
           </h2>
         </Reveal>
 
-        <div className="mt-12 grid gap-10 lg:grid-cols-2 lg:gap-8">
+        <div className="mt-10 grid min-w-0 max-w-full grid-cols-1 gap-6 md:mt-12 md:gap-10 lg:grid-cols-2 lg:gap-8">
           <Reveal delay={0.05}>
-            <div className="rounded-3xl bg-white/60 p-6 md:p-8">
-              <div className="mb-6 flex items-center gap-2 text-gray-900">
-                <span aria-hidden="true" className="text-xl">🏆</span>
-                <h3 className="text-heading-3">성과</h3>
+            <div className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl bg-white/60 p-3 md:rounded-3xl md:p-6 lg:p-8">
+              <div className="mb-2 flex items-center gap-2 text-gray-900 md:mb-6">
+                <span aria-hidden="true" className="text-base md:text-xl">🏆</span>
+                <h3 className="text-body-large font-bold md:text-heading-3">성과</h3>
               </div>
               <Carousel
                 ariaLabel="이권재 시장의 주요 성과"
@@ -75,10 +97,11 @@ export function HighlightsSection() {
                     numbering={a.id}
                     title={a.title}
                     desc={a.desc}
+                    imageUrl={outcomeImagePath(a.id)}
                   />
                 ))}
               </Carousel>
-              <div className="mt-6 flex justify-end">
+              <div className="mt-3 flex justify-end md:mt-6">
                 <Link href="/achievements" className="btn-text">
                   성과 전체 보기 →
                 </Link>
@@ -87,10 +110,10 @@ export function HighlightsSection() {
           </Reveal>
 
           <Reveal delay={0.12}>
-            <div className="rounded-3xl bg-white/60 p-6 md:p-8">
-              <div className="mb-6 flex items-center gap-2 text-gray-900">
-                <span aria-hidden="true" className="text-xl">🏗️</span>
-                <h3 className="text-heading-3">공약</h3>
+            <div className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl bg-white/60 p-3 md:rounded-3xl md:p-6 lg:p-8">
+              <div className="mb-2 flex items-center gap-2 text-gray-900 md:mb-6">
+                <span aria-hidden="true" className="text-base md:text-xl">🏗️</span>
+                <h3 className="text-body-large font-bold md:text-heading-3">공약</h3>
               </div>
               <Carousel
                 ariaLabel="이권재 후보의 주요 공약"
@@ -107,7 +130,7 @@ export function HighlightsSection() {
                   />
                 ))}
               </Carousel>
-              <div className="mt-6 flex justify-end">
+              <div className="mt-3 flex justify-end md:mt-6">
                 <Link href="/pledges" className="btn-text">
                   공약 전체 보기 →
                 </Link>

@@ -32,20 +32,28 @@ export function TopBar() {
       {state.kind === 'day' ? (
         <>
           <span aria-hidden="true">🗳️ </span>
-          오늘은 본선거일입니다! 투표소 찾기
+          오늘은 <strong className="font-bold">제9회 전국동시지방선거</strong> 본선거일입니다! 투표소 찾기
         </>
       ) : state.kind === 'before' ? (
         <>
           <span className="hidden sm:inline">
-            <span aria-hidden="true">🗓️ </span>
-            본선거 6.3까지 <strong className="font-bold">D-{state.days}</strong>
-            <span className="mx-2 opacity-60">·</span>
-            사전투표 5.29~5.30
+            <span className="opacity-80">
+              <span aria-hidden="true">🗓️ </span>
+              제9회 전국동시지방선거
+            </span>
+            <span className="mx-2 opacity-50">·</span>
+            <span className="text-base font-extrabold tracking-tight">
+              본선거 6.3까지 <span className="ml-1 rounded-md bg-white px-2 py-0.5 text-red-500">D-{state.days}</span>
+            </span>
+            <span className="mx-2 opacity-50">·</span>
+            <span className="opacity-80">사전투표 5.29~5.30</span>
           </span>
-          <span className="sm:hidden">
-            <strong className="font-bold">D-{state.days}</strong>
-            <span className="mx-2 opacity-60">·</span>
-            사전 5.29~5.30
+          <span className="sm:hidden inline-flex items-center gap-2">
+            <span className="opacity-80">제9회 지방선거</span>
+            <span className="text-base font-extrabold tracking-tight">
+              6.3 <span className="rounded-md bg-white px-1.5 py-0.5 text-red-500">D-{state.days}</span>
+            </span>
+            <span className="opacity-80">사전 5.29~30</span>
           </span>
         </>
       ) : (

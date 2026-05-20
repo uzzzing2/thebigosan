@@ -2,37 +2,38 @@
 
 import { useEffect, useState } from 'react'
 import { CheersList } from './CheersList'
+import { TopCheers } from './TopCheers'
 import { CheerWriteTrigger } from '@/components/cheers/CheerWriteTrigger'
 import { ReportModal } from '@/components/cheers/ReportModal'
 import { CountUp } from '@/components/ui'
-import { MOCK_CHEER_COUNT, mockCheers, type Cheer } from '@/lib/data/cheers'
+import type { Cheer } from '@/lib/data/cheers'
 import { isFirebaseConfigured } from '@/lib/firebase'
 import { countCheers, listenCheers } from '@/lib/firestore/cheers'
 
 export function CheersPageClient() {
-  const [items, setItems] = useState<Cheer[]>(mockCheers)
-  const [count, setCount] = useState<number>(MOCK_CHEER_COUNT)
+  const [items, setItems] = useState<Cheer[]>([])
+  const [count, setCount] = useState<number>(0)
   const [reportTarget, setReportTarget] = useState<string | null>(null)
 
   // Realtime feed
   useEffect(() => {
     if (!isFirebaseConfigured) return
     const unsubscribe = listenCheers((live) => {
-      setItems(live.length > 0 ? live : mockCheers)
-    })
+      setItems(live)
+    }, { limit: 600 })
     return unsubscribe
   }, [])
 
-  // Total count (one-shot)
+  // Total count (one-shot, refreshed when list size changes)
   useEffect(() => {
     if (!isFirebaseConfigured) return
     let cancelled = false
     countCheers()
       .then((n) => {
-        if (!cancelled) setCount(MOCK_CHEER_COUNT + n)
+        if (!cancelled) setCount(n)
       })
       .catch(() => {
-        // keep mock count
+        // keep last good count
       })
     return () => {
       cancelled = true
@@ -56,6 +57,8 @@ export function CheersPageClient() {
           </div>
         </div>
       </section>
+
+      <TopCheers />
 
       <section className="bg-white py-16 md:py-20 lg:py-24">
         <div className="container-base">

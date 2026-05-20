@@ -4,11 +4,14 @@ import {
   Timestamp,
   addDoc,
   collection,
+  doc,
   getCountFromServer,
+  increment,
   limit,
   onSnapshot,
   orderBy,
   query,
+  updateDoc,
   where,
 } from 'firebase/firestore'
 import { getDb, isFirebaseConfigured } from '@/lib/firebase'
@@ -27,6 +30,7 @@ export interface CheersDocument {
   reports: number
   isHidden: boolean
   fromGame: boolean
+  likes?: number
 }
 
 function docToCheer(id: string, d: CheersDocument): Cheer {
@@ -35,6 +39,7 @@ function docToCheer(id: string, d: CheersDocument): Cheer {
     nickname: d.nickname,
     content: d.content,
     createdAt: d.createdAt.toDate().toISOString(),
+    likes: d.likes ?? 0,
   }
 }
 
@@ -61,6 +66,39 @@ export function listenCheers(
       console.error('[cheers] onSnapshot error', err)
     },
   )
+}
+
+/** Realtime feed of top-liked visible cheers. Returns unsubscribe fn. */
+export function listenTopCheers(
+  onChange: (items: Cheer[]) => void,
+  n: number = 5,
+): () => void {
+  if (!isFirebaseConfigured) return () => {}
+  const db = getDb()
+  const q = query(
+    collection(db, CHEERS),
+    where('isHidden', '==', false),
+    orderBy('likes', 'desc'),
+    orderBy('createdAt', 'desc'),
+    limit(n),
+  )
+  return onSnapshot(
+    q,
+    (snap) => {
+      const items = snap.docs.map((d) => docToCheer(d.id, d.data() as CheersDocument))
+      onChange(items)
+    },
+    (err) => {
+      console.error('[cheers] listenTopCheers error', err)
+    },
+  )
+}
+
+/** Increment or decrement likes by ±1 (anyone). */
+export async function toggleCheerLike(id: string, delta: 1 | -1): Promise<void> {
+  if (!isFirebaseConfigured) return
+  const db = getDb()
+  await updateDoc(doc(db, CHEERS, id), { likes: increment(delta) })
 }
 
 /** Total count of visible cheers. */
@@ -135,6 +173,7 @@ export async function writeCheer(input: WriteCheerInput): Promise<Cheer> {
       nickname: input.nickname,
       content: input.content,
       createdAt: new Date().toISOString(),
+      likes: 0,
     }
   }
 
@@ -155,6 +194,7 @@ export async function writeCheer(input: WriteCheerInput): Promise<Cheer> {
     nickname: input.nickname,
     content: input.content,
     createdAt: new Date().toISOString(),
+    likes: 0,
   }
 }
 
