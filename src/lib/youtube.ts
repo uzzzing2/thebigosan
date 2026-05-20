@@ -16,26 +16,23 @@ export interface YoutubeVideo {
 }
 
 export async function getLatestVideos(n: number = 10): Promise<YoutubeVideo[]> {
+  const url = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`
   try {
-    const res = await fetch(
-      `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`,
-      {
-        // `next: { revalidate }` is Next.js-only and breaks the native fetch
-        // call when this code runs on Cloudflare Workers. Use the standard
-        // Cache-Control hint instead — Cloudflare honours that.
-        cf: { cacheEverything: true, cacheTtl: 1800 },
-        headers: { 'User-Agent': 'Mozilla/5.0 OsanCampaignBot/1.0' },
-      } as RequestInit,
-    )
-    if (!res.ok) {
-      console.warn('[youtube] feed fetch returned', res.status)
-      return []
-    }
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
+        Accept: 'application/atom+xml,application/xml,text/xml,*/*',
+      },
+    })
+    console.log('[youtube] feed fetch status', res.status)
+    if (!res.ok) return []
     const xml = await res.text()
     const items = parseAtomEntries(xml).slice(0, n)
+    console.log('[youtube] parsed items', items.length)
     return items
   } catch (e) {
-    console.warn('[youtube] feed fetch failed', (e as Error)?.message)
+    console.warn('[youtube] feed fetch failed', (e as Error)?.message ?? e)
     return []
   }
 }
