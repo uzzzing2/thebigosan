@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react'
 import { CountUp, Reveal } from '@/components/ui'
 import { CheerWriteTrigger } from '@/components/cheers/CheerWriteTrigger'
 import type { Cheer } from '@/lib/data/cheers'
-import { isFirebaseConfigured } from '@/lib/firebase'
-import { countCheers, listenTopCheers } from '@/lib/firestore/cheers'
 
 function CheerCard({ nickname, content }: { nickname: string; content: string }) {
   return (
@@ -24,24 +22,30 @@ export function MarqueeSection() {
   const [count, setCount] = useState<number>(0)
 
   useEffect(() => {
-    if (!isFirebaseConfigured) return
-    return listenTopCheers((live) => setItems(live), 20)
-  }, [])
-
-  useEffect(() => {
-    if (!isFirebaseConfigured) return
+    let unsubscribe: (() => void) | undefined
     let cancelled = false
-    countCheers()
-      .then((n) => {
-        if (!cancelled) setCount(n)
-      })
-      .catch(() => {
-        // keep last good count
-      })
+
+    // Lazy-load firebase only on the client to keep the SSR bundle
+    // (and Cloudflare Worker bundle) free of protobufjs/grpc/eval users.
+    Promise.all([
+      import('@/lib/firebase'),
+      import('@/lib/firestore/cheers'),
+    ]).then(([{ isFirebaseConfigured }, { listenTopCheers, countCheers }]) => {
+      if (cancelled) return
+      if (!isFirebaseConfigured) return
+      unsubscribe = listenTopCheers((live) => setItems(live), 20)
+      countCheers()
+        .then((n) => {
+          if (!cancelled) setCount(n)
+        })
+        .catch(() => {})
+    })
+
     return () => {
       cancelled = true
+      unsubscribe?.()
     }
-  }, [items.length])
+  }, [])
 
   const topRow = items.length > 0 ? [...items, ...items] : []
   const reversed = [...items].reverse()
