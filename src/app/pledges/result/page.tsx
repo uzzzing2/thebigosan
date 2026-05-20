@@ -63,20 +63,20 @@ export default function ResultPage({
           </p>
           <ResultHeadline fallback={district ?? '시민'} />
           <p className="mt-4 text-body-large text-gray-700">
-            거주 동{fields.length > 0 ? '·관심 분야' : ''}를 고려했어요
-            {fields.length > 0 && (
-              <>
-                <br />
-                <span className="mt-2 inline-flex flex-wrap justify-center gap-1.5">
-                  {fields.map((f) => (
-                    <Tag key={f} tone="blue">
-                      {f}
-                    </Tag>
-                  ))}
-                </span>
-              </>
-            )}
+            거주 동{fields.length > 0 ? '·관심 분야' : ''}
+            {selectedAge ? '·연령대' : ''}를 고려했어요
           </p>
+          {(district || fields.length > 0 || selectedAge) && (
+            <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+              {district && <Tag tone="red">📍 {district}</Tag>}
+              {fields.map((f) => (
+                <Tag key={f} tone="blue">
+                  {f}
+                </Tag>
+              ))}
+              {selectedAge && <Tag tone="gray">{selectedAge}</Tag>}
+            </div>
+          )}
         </div>
       </section>
 
