@@ -10,5 +10,23 @@
   },
   "observability": {
     "enabled": true
+  },
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "xn--zf0b740c3e.com",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "NEXT_PUBLIC_FIREBASE_API_KEY": "AIzaSyCiObaKSJ2UgxdnVuOV6TY35WySwC5u0i0",
+    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": "thebigosan.firebaseapp.com",
+    "NEXT_PUBLIC_FIREBASE_PROJECT_ID": "thebigosan",
+    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "thebigosan.firebasestorage.app",
+    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "232738600744",
+    "NEXT_PUBLIC_FIREBASE_APP_ID": "1:232738600744:web:c81feaae09b6251723421d",
+    "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-KWHW8E0QRQ",
+    "NEXT_PUBLIC_ADMIN_EMAILS": "greatosan100@gmail.com",
+    "ADMIN_EMAILS": "greatosan100@gmail.com"
   }
 }
