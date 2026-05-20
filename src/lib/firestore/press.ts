@@ -40,8 +40,16 @@ function docToItem(id: string, d: PressDoc): PressItem {
   }
 }
 
-/** Returns published press sorted by publishedAt desc. Falls back to mock when empty / unconfigured. */
+/**
+ * Returns press items sorted by publishedAt desc.
+ * Currently uses the generated static dataset in src/lib/data/press.ts.
+ * Firestore integration is deferred — when the `press` collection is
+ * populated and a composite index is created, swap the body back to the
+ * commented Firestore query below.
+ */
 export async function getAllPress(): Promise<PressItem[]> {
+  return mockPress
+  /*
   if (!isFirebaseConfigured) return mockPress
   try {
     const db = getDb()
@@ -58,26 +66,11 @@ export async function getAllPress(): Promise<PressItem[]> {
     console.error('[press] getAllPress failed', err)
     return mockPress
   }
+  */
 }
 
 export async function getPressById(id: string): Promise<PressItem | undefined> {
-  if (!isFirebaseConfigured) return mockPress.find((p) => p.id === id)
-  try {
-    const db = getDb()
-    const ref = doc(db, PRESS, id)
-    const snap = await getDoc(ref)
-    if (!snap.exists()) {
-      return mockPress.find((p) => p.id === id)
-    }
-    const data = snap.data() as PressDoc
-    if (!data.isPublished) {
-      return mockPress.find((p) => p.id === id)
-    }
-    return docToItem(snap.id, data)
-  } catch (err) {
-    console.error('[press] getPressById failed', err)
-    return mockPress.find((p) => p.id === id)
-  }
+  return mockPress.find((p) => p.id === id)
 }
 
 export function findAdjacent(items: PressItem[], id: string) {
