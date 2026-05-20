@@ -1,72 +1,14 @@
-import {
-  Timestamp,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
-} from 'firebase/firestore'
-import { getDb, isFirebaseConfigured } from '@/lib/firebase'
-import {
-  pressItems as mockPress,
-  type PressItem,
-  type PressCategory,
-} from '@/lib/data/press'
-
-const PRESS = 'press'
-
-interface PressDoc {
-  category: PressCategory
-  title: string
-  body: string
-  thumbnail?: string
-  publishedAt: Timestamp
-  mediaLinks: { name: string; url: string }[]
-  isPublished: boolean
-}
-
-function docToItem(id: string, d: PressDoc): PressItem {
-  return {
-    id,
-    category: d.category,
-    title: d.title,
-    body: d.body,
-    thumbnail: d.thumbnail,
-    publishedAt: d.publishedAt.toDate().toISOString().slice(0, 10),
-    mediaLinks: d.mediaLinks ?? [],
-  }
-}
+import { pressItems as mockPress, type PressItem } from '@/lib/data/press'
 
 /**
  * Returns press items sorted by publishedAt desc.
  * Currently uses the generated static dataset in src/lib/data/press.ts.
- * Firestore integration is deferred — when the `press` collection is
- * populated and a composite index is created, swap the body back to the
- * commented Firestore query below.
+ * Firestore integration is deferred — re-introduce firestore imports
+ * and the original query when the `press` collection is populated and
+ * a composite index is created.
  */
 export async function getAllPress(): Promise<PressItem[]> {
   return mockPress
-  /*
-  if (!isFirebaseConfigured) return mockPress
-  try {
-    const db = getDb()
-    const q = query(
-      collection(db, PRESS),
-      where('isPublished', '==', true),
-      orderBy('publishedAt', 'desc'),
-      limit(200),
-    )
-    const snap = await getDocs(q)
-    if (snap.empty) return mockPress
-    return snap.docs.map((d) => docToItem(d.id, d.data() as PressDoc))
-  } catch (err) {
-    console.error('[press] getAllPress failed', err)
-    return mockPress
-  }
-  */
 }
 
 export async function getPressById(id: string): Promise<PressItem | undefined> {
