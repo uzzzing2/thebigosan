@@ -10,8 +10,6 @@ import type { Cheer } from '@/lib/data/cheers'
 // Workers disallow `new Function`/`eval` (the protobufjs codegen path).
 
 const CHEERS = 'cheers'
-const RATE_LIMIT_KEY = 'lkj_cheer_last_write_at'
-const RATE_LIMIT_MS = 60 * 1000
 
 // Local type that mirrors the Firestore document shape without importing
 // the Timestamp value type at module scope.
@@ -137,15 +135,6 @@ export async function countCheers(): Promise<number> {
   return snap.data().count
 }
 
-export class CheerRateLimitError extends Error {
-  remainingMs: number
-  constructor(remainingMs: number) {
-    super(`1분에 1번만 응원할 수 있어요. ${Math.ceil(remainingMs / 1000)}초 후 다시 시도해주세요.`)
-    this.name = 'CheerRateLimitError'
-    this.remainingMs = remainingMs
-  }
-}
-
 export class CheerForbiddenError extends Error {
   word: string
   constructor(word: string) {
@@ -155,47 +144,18 @@ export class CheerForbiddenError extends Error {
   }
 }
 
-/** Returns ms remaining if rate-limited, else 0. */
-function checkLocalRateLimit(): number {
-  if (typeof window === 'undefined') return 0
-  try {
-    const raw = window.localStorage.getItem(RATE_LIMIT_KEY)
-    if (!raw) return 0
-    const last = Number(raw)
-    if (!Number.isFinite(last)) return 0
-    const elapsed = Date.now() - last
-    if (elapsed >= RATE_LIMIT_MS) return 0
-    return RATE_LIMIT_MS - elapsed
-  } catch {
-    return 0
-  }
-}
-
-function markLocalRateLimit(): void {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(RATE_LIMIT_KEY, String(Date.now()))
-  } catch {
-    // noop
-  }
-}
-
 export interface WriteCheerInput {
   nickname: string
   content: string
 }
 
 export async function writeCheer(input: WriteCheerInput): Promise<Cheer> {
-  const remaining = checkLocalRateLimit()
-  if (remaining > 0) throw new CheerRateLimitError(remaining)
-
   const forbidden = findForbiddenWord(input.content)
   if (forbidden) throw new CheerForbiddenError(forbidden)
 
   const { addDoc, collection, Timestamp, getDb, isFirebaseConfigured } = await loadFirebase()
 
   if (!isFirebaseConfigured) {
-    markLocalRateLimit()
     return {
       id: `local-${Date.now()}`,
       nickname: input.nickname,
@@ -214,8 +174,6 @@ export async function writeCheer(input: WriteCheerInput): Promise<Cheer> {
     isHidden: false,
     fromGame: false,
   })
-
-  markLocalRateLimit()
 
   return {
     id: ref.id,

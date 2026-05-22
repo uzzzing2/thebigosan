@@ -3,11 +3,11 @@ import {
   collection,
   getDocs,
   limit,
-  orderBy,
   query,
   where,
 } from 'firebase/firestore'
 import { getDb, isFirebaseConfigured } from '@/lib/firebase'
+import { INSTAGRAM_POSTS } from '@/lib/data/instagram'
 
 const SNS_CURATION = 'snsCuration'
 
@@ -16,7 +16,7 @@ export interface InstagramCurationItem {
   imageUrl: string
   caption: string
   originalUrl: string
-  postedAt: string // ISO date
+  postedAt: string // ISO date (may be empty for migrated-from-static items)
   order: number
 }
 
@@ -29,38 +29,46 @@ interface InstagramDoc {
   isActive: boolean
 }
 
-const MOCK_INSTAGRAM: InstagramCurationItem[] = [
-  { id: 'i1', caption: '오색시장 현장에서', postedAt: '2026-05-14', imageUrl: '', originalUrl: '#', order: 1 },
-  { id: 'i2', caption: '세교2지구 주민과의 만남', postedAt: '2026-05-11', imageUrl: '', originalUrl: '#', order: 2 },
-  { id: 'i3', caption: '청년정책 간담회', postedAt: '2026-05-07', imageUrl: '', originalUrl: '#', order: 3 },
-  { id: 'i4', caption: '아이드림센터 방문', postedAt: '2026-05-02', imageUrl: '', originalUrl: '#', order: 4 },
-]
+function staticFallback(max: number): InstagramCurationItem[] {
+  return INSTAGRAM_POSTS.slice(0, max).map((p, i) => ({
+    id: p.id,
+    imageUrl: '',
+    caption: '',
+    originalUrl: p.url,
+    postedAt: '',
+    order: i * 10,
+  }))
+}
 
 export async function getInstagramCuration(max = 8): Promise<InstagramCurationItem[]> {
-  if (!isFirebaseConfigured) return MOCK_INSTAGRAM
+  if (!isFirebaseConfigured) return staticFallback(max)
   try {
     const db = getDb()
+    // Filter by isActive (required by Firestore rule for anonymous reads),
+    // then sort by `order` client-side to avoid needing a composite index.
     const q = query(
       collection(db, SNS_CURATION),
       where('isActive', '==', true),
-      orderBy('order', 'asc'),
-      limit(max),
+      limit(200),
     )
     const snap = await getDocs(q)
-    if (snap.empty) return MOCK_INSTAGRAM
-    return snap.docs.map((d) => {
-      const data = d.data() as InstagramDoc
-      return {
-        id: d.id,
-        imageUrl: data.imageUrl,
-        caption: data.caption,
-        originalUrl: data.originalUrl,
-        postedAt: data.postedAt.toDate().toISOString().slice(0, 10),
-        order: data.order,
-      }
-    })
+    if (snap.empty) return staticFallback(max)
+    return snap.docs
+      .map((d) => {
+        const data = d.data() as InstagramDoc
+        return {
+          id: d.id,
+          imageUrl: data.imageUrl,
+          caption: data.caption,
+          originalUrl: data.originalUrl,
+          postedAt: data.postedAt?.toDate?.().toISOString().slice(0, 10) ?? '',
+          order: data.order ?? 0,
+        }
+      })
+      .sort((a, b) => a.order - b.order)
+      .slice(0, max)
   } catch (err) {
     console.error('[snsCuration] getInstagramCuration failed', err)
-    return MOCK_INSTAGRAM
+    return staticFallback(max)
   }
 }

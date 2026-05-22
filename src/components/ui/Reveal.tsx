@@ -31,7 +31,7 @@ export function Reveal({
   ...rest
 }: RevealProps) {
   const reduce = useReducedMotion()
-  const MotionTag = motion(as ?? 'div')
+  const MotionTag = motion.create(as ?? 'div')
 
   if (reduce) {
     return <MotionTag {...rest}>{children}</MotionTag>
@@ -71,7 +71,7 @@ export function RevealStagger({
   ...rest
 }: RevealStaggerProps) {
   const reduce = useReducedMotion()
-  const MotionTag = motion(as ?? 'div')
+  const MotionTag = motion.create(as ?? 'div')
 
   if (reduce) {
     return <MotionTag {...rest}>{children}</MotionTag>
@@ -111,7 +111,7 @@ export function RevealItem({
   children: ReactNode
 }) {
   const reduce = useReducedMotion()
-  const MotionTag = motion(as ?? 'div')
+  const MotionTag = motion.create(as ?? 'div')
 
   if (reduce) {
     return <MotionTag {...rest}>{children}</MotionTag>

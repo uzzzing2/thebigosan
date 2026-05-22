@@ -12,7 +12,7 @@ export interface ModalProps {
   description?: ReactNode
   /** On mobile, render as a bottom sheet (used for forms). Desktop is always centered. */
   mobileBottomSheet?: boolean
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
   children: ReactNode
   /** Hide the default close button at top-right */
   hideClose?: boolean
@@ -22,6 +22,7 @@ const sizeClasses: Record<NonNullable<ModalProps['size']>, string> = {
   sm: 'md:max-w-[420px]',
   md: 'md:max-w-[560px]',
   lg: 'md:max-w-[720px]',
+  xl: 'md:max-w-[920px]',
 }
 
 export function Modal({
@@ -42,7 +43,7 @@ export function Modal({
         />
         <Dialog.Content
           className={cn(
-            'fixed z-50 bg-white shadow-modal focus:outline-none',
+            'fixed z-50 bg-white shadow-modal focus:outline-none max-h-[calc(100vh-2rem)] overflow-y-auto',
             mobileBottomSheet
               ? 'inset-x-0 bottom-0 w-full rounded-t-3xl p-6 pt-7 animate-slideUp md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:w-[calc(100vw-2rem)] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl md:p-8 md:animate-modalIn'
               : 'left-1/2 top-1/2 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-3xl p-6 md:p-8 animate-modalIn',

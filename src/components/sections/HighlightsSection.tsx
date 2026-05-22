@@ -1,16 +1,24 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
-import { Carousel, Reveal, Tag } from '@/components/ui'
-import { achievements } from '@/lib/data/achievements'
+import { useState } from 'react'
+import { Carousel, Modal, Reveal, Tag } from '@/components/ui'
+import { achievements, type Achievement } from '@/lib/data/achievements'
 import { corePledges } from '@/lib/data/pledges'
 
-const HIGHLIGHT_COUNT = 7
+const ACHIEVEMENT_COUNT = 7
+const PLEDGE_COUNT = 10
 
-const featuredAchievements = achievements.slice(0, HIGHLIGHT_COUNT)
-const featuredPledges = corePledges.slice(0, HIGHLIGHT_COUNT)
+const featuredAchievements = achievements.slice(0, ACHIEVEMENT_COUNT)
+const featuredPledges = corePledges.slice(0, PLEDGE_COUNT)
 
 function outcomeImagePath(id: string): string {
   return `/images/outcome/성과 ${Number(id)}.png`
+}
+
+function pledgeImagePath(id: string, title: string): string {
+  return `/images/promiss/${id} ${title}.png`
 }
 
 function PreviewCard({
@@ -20,6 +28,8 @@ function PreviewCard({
   title,
   desc,
   imageUrl,
+  onClick,
+  ariaLabel,
 }: {
   badge: string
   badgeTone: 'red' | 'blue'
@@ -27,9 +37,11 @@ function PreviewCard({
   title: string
   desc?: string
   imageUrl?: string
+  onClick?: () => void
+  ariaLabel?: string
 }) {
-  return (
-    <article className="flex h-full flex-col gap-3 rounded-2xl bg-white p-4 shadow-md md:gap-4 md:p-6">
+  const content = (
+    <>
       <div className="flex items-center justify-between gap-2">
         <Tag tone={badgeTone}>{badge}</Tag>
         <span className="text-caption font-medium text-gray-500">No. {numbering}</span>
@@ -55,11 +67,32 @@ function PreviewCard({
           <p className="truncate-2 mt-1.5 text-body-small text-gray-700 md:mt-2">{desc}</p>
         )}
       </div>
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={ariaLabel}
+        className="group flex h-full w-full flex-col gap-3 rounded-2xl bg-white p-4 text-left shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-red-500/20 md:gap-4 md:p-6"
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <article className="flex h-full flex-col gap-3 rounded-2xl bg-white p-4 shadow-md md:gap-4 md:p-6">
+      {content}
     </article>
   )
 }
 
 export function HighlightsSection() {
+  const [activeAchievement, setActiveAchievement] = useState<Achievement | null>(null)
+
   return (
     <section
       aria-labelledby="highlights-heading"
@@ -96,8 +129,9 @@ export function HighlightsSection() {
                     badgeTone="red"
                     numbering={a.id}
                     title={a.title}
-                    desc={a.desc}
                     imageUrl={outcomeImagePath(a.id)}
+                    onClick={() => setActiveAchievement(a)}
+                    ariaLabel={`${a.title} 상세 보기`}
                   />
                 ))}
               </Carousel>
@@ -127,6 +161,7 @@ export function HighlightsSection() {
                     badgeTone="blue"
                     numbering={p.id}
                     title={p.title}
+                    imageUrl={pledgeImagePath(p.id, p.title)}
                   />
                 ))}
               </Carousel>
@@ -139,6 +174,47 @@ export function HighlightsSection() {
           </Reveal>
         </div>
       </div>
+
+      <Modal
+        open={activeAchievement !== null}
+        onOpenChange={(open) => !open && setActiveAchievement(null)}
+        title={activeAchievement?.title}
+        description={activeAchievement?.desc}
+        size="xl"
+      >
+        {activeAchievement && (
+          <div className="space-y-5">
+            <div className="relative mx-auto aspect-[4/5] w-full max-w-[min(720px,calc((100vh-16rem)*4/5))] overflow-hidden rounded-xl bg-cream-100">
+              <Image
+                src={outcomeImagePath(activeAchievement.id)}
+                alt=""
+                fill
+                sizes="(min-width: 1024px) 720px, 90vw"
+                className="object-cover object-center"
+              />
+            </div>
+            {activeAchievement.relatedLinks && activeAchievement.relatedLinks.length > 0 && (
+              <div>
+                <p className="text-body font-medium text-gray-900">관련 보도</p>
+                <ul className="mt-2 space-y-1">
+                  {activeAchievement.relatedLinks.map((l, i) => (
+                    <li key={i}>
+                      <a
+                        href={l.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-text"
+                      >
+                        {l.name} ↗
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </section>
   )
 }

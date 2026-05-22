@@ -1,20 +1,37 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Tag } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { formatPressDate, type PressItem } from '@/lib/data/press'
+import { getAllPress } from '@/lib/firestore/press'
 
 type Filter = '전체' | '정책' | '칼럼'
 const FILTERS: Filter[] = ['전체', '정책', '칼럼']
 
 const PAGE_SIZE = 9
 
-export function PressFilter({ items }: { items: PressItem[] }) {
+export function PressFilter({ initialItems }: { initialItems: PressItem[] }) {
+  const [items, setItems] = useState<PressItem[]>(initialItems)
   const [filter, setFilter] = useState<Filter>('전체')
   const [visible, setVisible] = useState(PAGE_SIZE)
+
+  // Refresh from Firestore after hydration so admin-added posts appear without a rebuild.
+  useEffect(() => {
+    let cancelled = false
+    getAllPress()
+      .then((fresh) => {
+        if (!cancelled && fresh.length > 0) setItems(fresh)
+      })
+      .catch(() => {
+        /* keep initial fallback */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const filtered = useMemo(() => {
     const arr = filter === '전체' ? items : items.filter((p) => p.category === filter)

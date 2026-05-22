@@ -3,18 +3,25 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { PencilSquareIcon, PlusIcon } from '@heroicons/react/24/outline'
+import {
+  ArrowDownTrayIcon,
+  PencilSquareIcon,
+  PlusIcon,
+} from '@heroicons/react/24/outline'
 import { Tag } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import {
   listAllPress,
+  migratePressFromStatic,
   setPressPublished,
   type AdminPressItem,
 } from '@/lib/firestore/admin'
+import { pressItems as staticPress } from '@/lib/data/press'
 
 export default function AdminPressListPage() {
   const [items, setItems] = useState<AdminPressItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [migrating, setMigrating] = useState(false)
 
   async function refresh() {
     setLoading(true)
@@ -43,14 +50,60 @@ export default function AdminPressListPage() {
     }
   }
 
+  async function handleMigrate() {
+    if (
+      !confirm(
+        `정적 파일의 보도자료 ${staticPress.length}건을 Firestore에 가져옵니다. 이미 같은 ID가 있는 항목은 건너뜁니다. 진행할까요?`,
+      )
+    )
+      return
+    setMigrating(true)
+    try {
+      const { created, skipped } = await migratePressFromStatic()
+      toast.success(`마이그레이션 완료 — 새로 추가 ${created}건, 건너뜀 ${skipped}건`)
+      await refresh()
+    } catch (e) {
+      toast.error(`마이그레이션 실패: ${(e as Error).message}`)
+    } finally {
+      setMigrating(false)
+    }
+  }
+
+  const missingStaticCount = staticPress.filter(
+    (s) => !items.some((i) => i.id === s.id),
+  ).length
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-heading-1 text-gray-900">보도자료</h1>
-        <Link href="/admin/press/new" className="btn-primary">
-          <PlusIcon className="h-5 w-5" aria-hidden="true" />새 글 작성
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {missingStaticCount > 0 && !loading && (
+            <button
+              type="button"
+              onClick={handleMigrate}
+              disabled={migrating}
+              className="btn-secondary"
+            >
+              <ArrowDownTrayIcon className="h-5 w-5" aria-hidden="true" />
+              {migrating
+                ? '가져오는 중…'
+                : `기존 보도자료 가져오기 (${missingStaticCount}건)`}
+            </button>
+          )}
+          <Link href="/admin/press/new" className="btn-primary">
+            <PlusIcon className="h-5 w-5" aria-hidden="true" />새 글 작성
+          </Link>
+        </div>
       </header>
+
+      {missingStaticCount > 0 && !loading && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-caption text-blue-700">
+          정적 파일에 있는 보도자료 {staticPress.length}건 중 {missingStaticCount}건이 아직
+          Firestore에 없습니다. "기존 보도자료 가져오기" 버튼을 누르면 누락된 항목만 추가되며,
+          이미 있는 항목과 어드민에서 작성한 새 글은 그대로 유지됩니다.
+        </div>
+      )}
 
       {loading ? (
         <p className="rounded-lg bg-white p-6 text-body-small text-gray-500">불러오는 중…</p>

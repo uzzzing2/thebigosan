@@ -8,11 +8,7 @@ import { Modal, Input, Textarea } from '@/components/ui'
 import { CheerGuidelines } from './CheerGuidelines'
 import { cheerFormSchema, type CheerFormValues } from '@/lib/validators/cheer'
 import type { Cheer } from '@/lib/data/cheers'
-import {
-  CheerForbiddenError,
-  CheerRateLimitError,
-  writeCheer,
-} from '@/lib/firestore/cheers'
+import { CheerForbiddenError, writeCheer } from '@/lib/firestore/cheers'
 import { getStoredNickname, setStoredNickname } from '@/app/cheers/useStoredNickname'
 
 export interface CheerWriteModalProps {
@@ -60,9 +56,7 @@ export function CheerWriteModal({ open, onOpenChange, onSubmitted }: CheerWriteM
       toast.success('응원이 등록되었어요', { description: '소중한 한마디 감사합니다.' })
       onOpenChange(false)
     } catch (e) {
-      if (e instanceof CheerRateLimitError) {
-        toast.error(e.message)
-      } else if (e instanceof CheerForbiddenError) {
+      if (e instanceof CheerForbiddenError) {
         setError('content', { message: '사용할 수 없는 표현이 포함되어 있어요' })
       } else {
         console.error(e)

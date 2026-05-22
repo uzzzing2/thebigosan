@@ -1,41 +1,64 @@
-import type { Metadata } from 'next'
+'use client'
+
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { Tag } from '@/components/ui'
-import { formatPressDate, pressItems as staticPress } from '@/lib/data/press'
-import { findAdjacent } from '@/lib/firestore/press'
+import { formatPressDate, type PressItem } from '@/lib/data/press'
+import { findAdjacent, getAllPress, getPressById } from '@/lib/firestore/press'
 import { CopyLinkButton } from './CopyLinkButton'
-import { PressDetailFirestoreFallback } from './PressDetailFirestoreFallback'
 
-interface Params {
-  params: { id: string }
-}
+/**
+ * Client-side detail renderer used when an ID is not in the static dataset
+ * (e.g. an admin-added post). Fetches from Firestore on mount; falls through
+ * to notFound() if the doc doesn't exist.
+ */
+export function PressDetailFirestoreFallback({ id }: { id: string }) {
+  const [state, setState] = useState<
+    | { kind: 'loading' }
+    | { kind: 'ready'; item: PressItem; prev?: PressItem; next?: PressItem }
+    | { kind: 'missing' }
+  >({ kind: 'loading' })
 
-export const revalidate = 60
-export const dynamicParams = true
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([getPressById(id), getAllPress()])
+      .then(([item, all]) => {
+        if (cancelled) return
+        if (!item) {
+          setState({ kind: 'missing' })
+          return
+        }
+        const { prev, next } = findAdjacent(all, id)
+        setState({ kind: 'ready', item, prev, next })
+      })
+      .catch(() => {
+        if (!cancelled) setState({ kind: 'missing' })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id])
 
-export async function generateStaticParams() {
-  return staticPress.map((p) => ({ id: p.id }))
-}
-
-export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const item = staticPress.find((p) => p.id === params.id)
-  if (!item) return { title: '보도자료' }
-  return {
-    title: item.title,
-    description: item.body.replace(/<[^>]+>/g, '').slice(0, 120),
+  if (state.kind === 'loading') {
+    return (
+      <article className="bg-white">
+        <div className="container-base max-w-[800px] py-12 md:py-16 lg:py-20">
+          <Link href="/press" className="btn-text">
+            ← 목록으로
+          </Link>
+          <p className="mt-10 text-body text-gray-500">불러오는 중…</p>
+        </div>
+      </article>
+    )
   }
-}
 
-export default function PressDetailPage({ params }: Params) {
-  const item = staticPress.find((p) => p.id === params.id)
-  // ID not in static dataset — likely an admin-added post; render
-  // a client-side fetcher that hits Firestore.
-  if (!item) {
-    return <PressDetailFirestoreFallback id={params.id} />
+  if (state.kind === 'missing') {
+    notFound()
   }
 
-  const { prev, next } = findAdjacent(staticPress, params.id)
+  const { item, prev, next } = state
 
   return (
     <article className="bg-white">
@@ -102,17 +125,27 @@ export default function PressDetailPage({ params }: Params) {
         <nav className="mt-12 grid grid-cols-2 gap-4 border-t border-gray-200 pt-8">
           <div>
             {prev ? (
-              <Link href={`/press/${prev.id}`} className="block rounded-xl bg-cream-50 p-4 transition-colors hover:bg-cream-100">
+              <Link
+                href={`/press/${prev.id}`}
+                className="block rounded-xl bg-cream-50 p-4 transition-colors hover:bg-cream-100"
+              >
                 <p className="text-caption text-gray-500">← 이전 글</p>
-                <p className="truncate-1 mt-1 text-body font-medium text-gray-900">{prev.title}</p>
+                <p className="truncate-1 mt-1 text-body font-medium text-gray-900">
+                  {prev.title}
+                </p>
               </Link>
             ) : null}
           </div>
           <div className="text-right">
             {next ? (
-              <Link href={`/press/${next.id}`} className="block rounded-xl bg-cream-50 p-4 transition-colors hover:bg-cream-100">
+              <Link
+                href={`/press/${next.id}`}
+                className="block rounded-xl bg-cream-50 p-4 transition-colors hover:bg-cream-100"
+              >
                 <p className="text-caption text-gray-500">다음 글 →</p>
-                <p className="truncate-1 mt-1 text-body font-medium text-gray-900">{next.title}</p>
+                <p className="truncate-1 mt-1 text-body font-medium text-gray-900">
+                  {next.title}
+                </p>
               </Link>
             ) : null}
           </div>

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { getAllPress } from '@/lib/firestore/press'
+import { pressItems as staticPress } from '@/lib/data/press'
 import { PressFilter } from './PressFilter'
 
 export const metadata: Metadata = {
@@ -7,11 +7,10 @@ export const metadata: Metadata = {
   description: '이권재 더큰오산 캠프의 정책 발표와 칼럼, 언론 보도를 모아 보세요.',
 }
 
-/** Re-render at most once every 60s. Step 10에서 운영 트래픽에 맞춰 조정 가능. */
+/** Re-render at most once every 60s. */
 export const revalidate = 60
 
-export default async function PressPage() {
-  const items = await getAllPress()
+export default function PressPage() {
   return (
     <>
       <section className="bg-cream-50 py-16 md:py-20 lg:py-24">
@@ -25,7 +24,7 @@ export default async function PressPage() {
 
       <section className="bg-white py-12 md:py-16 lg:py-20">
         <div className="container-base">
-          <PressFilter items={items} />
+          <PressFilter initialItems={staticPress} />
         </div>
       </section>
     </>

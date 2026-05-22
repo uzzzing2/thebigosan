@@ -26,10 +26,10 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <>
-      {/* Section 1: Hero — full-bleed intro image with overlay branding */}
+      {/* Section 1: Hero — full-bleed photo with right-aligned branding overlay on all sizes */}
       <section
         aria-labelledby="about-hero-heading"
-        className="relative isolate overflow-hidden bg-gray-900 min-h-[calc(100vh-60px)] md:min-h-[calc(100vh-72px)]"
+        className="relative isolate overflow-hidden bg-white min-h-[68vh] md:min-h-[calc(100vh-72px)]"
       >
         <h1 id="about-hero-heading" className="sr-only">
           {`${CANDIDATE.party} 기호 ${CANDIDATE.number}번 ${CANDIDATE.name} 오산시장 후보 — ${SLOGAN.tagging}`}
@@ -45,15 +45,17 @@ export default function AboutPage() {
           className="object-cover object-[30%_center]"
         />
 
-        {/* Branding overlay */}
-        <div className="relative z-10 container-base flex min-h-[calc(100vh-60px)] md:min-h-[calc(100vh-72px)] flex-col items-center justify-end gap-6 py-12 lg:items-end lg:justify-center lg:gap-8 lg:py-0">
+        {/* Branding overlay
+            Mobile: raurel at top, slogan + logo attached directly below — all right-aligned.
+            Desktop: same three items right-aligned, vertically centered. */}
+        <div className="relative z-10 container-base flex min-h-[68vh] md:min-h-[calc(100vh-72px)] flex-col items-end justify-start gap-3 py-8 lg:justify-center lg:gap-8 lg:py-0">
           <Image
             src="/images/raurel.png"
             alt="3년 연속 공약이행평가 최우수, 1800억 국·도비 확보, 세교3지구 재지정"
             width={1200}
             height={260}
             priority
-            className="h-auto w-full max-w-[460px] lg:max-w-[540px]"
+            className="h-auto w-full max-w-[360px] sm:max-w-[480px] lg:max-w-[540px]"
           />
           <Image
             src="/images/thebigosanslogan.png"
@@ -61,14 +63,14 @@ export default function AboutPage() {
             width={880}
             height={400}
             priority
-            className="h-auto w-full max-w-[440px] lg:max-w-[520px]"
+            className="h-auto w-[60%] max-w-[270px] sm:max-w-[390px] lg:w-full lg:max-w-[520px]"
           />
           <Image
             src="/images/logo-simple.png"
             alt={`${CANDIDATE.name} ${CANDIDATE.campName}`}
             width={520}
             height={245}
-            className="h-auto w-full max-w-[340px] lg:max-w-[400px]"
+            className="h-auto w-[60%] max-w-[270px] sm:max-w-[390px] lg:w-full lg:max-w-[400px]"
           />
         </div>
       </section>

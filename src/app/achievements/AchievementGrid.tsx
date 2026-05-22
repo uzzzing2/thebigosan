@@ -59,20 +59,20 @@ export function AchievementGrid() {
               className="group flex h-full w-full flex-col gap-3 rounded-2xl bg-white p-3 text-left shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-red-500/20 sm:gap-4 sm:p-6"
               aria-label={`${a.title} 상세 보기`}
             >
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 px-3 pt-3 sm:px-6 sm:pt-6">
                 <Tag tone="red">{a.category}</Tag>
                 <span className="text-caption font-medium text-gray-500">No. {a.id}</span>
               </div>
-              <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-cream-100">
+              <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-cream-100">
                 <Image
                   src={outcomeImagePath(a.id)}
                   alt=""
                   fill
                   sizes="(min-width: 1024px) 360px, (min-width: 640px) 50vw, 50vw"
-                  className="object-cover"
+                  className="object-cover object-center"
                 />
               </div>
-              <div>
+              <div className="px-3 pb-3 sm:px-6 sm:pb-6">
                 <h3 className="text-body font-bold text-gray-900 group-hover:text-red-500 sm:text-heading-3 sm:font-bold">
                   {a.title}
                 </h3>
@@ -88,22 +88,18 @@ export function AchievementGrid() {
         onOpenChange={(open) => !open && setActive(null)}
         title={active?.title}
         description={active?.desc}
-        size="lg"
+        size="xl"
       >
         {active && (
           <div className="space-y-5">
-            <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-cream-100">
+            <div className="relative mx-auto aspect-[4/5] w-full max-w-[min(720px,calc((100vh-16rem)*4/5))] overflow-hidden rounded-xl bg-cream-100">
               <Image
                 src={outcomeImagePath(active.id)}
                 alt=""
                 fill
-                sizes="(min-width: 1024px) 700px, 90vw"
-                className="object-cover"
+                sizes="(min-width: 1024px) 720px, 90vw"
+                className="object-cover object-center"
               />
-            </div>
-            <div className="flex items-center gap-2">
-              <Tag tone="red">{active.category}</Tag>
-              <span className="text-caption text-gray-500">No. {active.id}</span>
             </div>
             {active.relatedLinks && active.relatedLinks.length > 0 && (
               <div>

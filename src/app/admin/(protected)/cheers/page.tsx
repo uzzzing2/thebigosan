@@ -2,11 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { EyeIcon, EyeSlashIcon, TrashIcon, FlagIcon } from '@heroicons/react/24/outline'
+import {
+  ArrowUturnLeftIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  FlagIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline'
 import { cn } from '@/lib/cn'
 import {
   type AdminCheer,
+  type ReportReadDiagnostics,
+  clearReportsForCheer,
   deleteCheer,
+  getLastReportDiagnostics,
   listAllCheers,
   setCheerHidden,
 } from '@/lib/firestore/admin'
@@ -18,12 +27,14 @@ export default function AdminCheersPage() {
   const [items, setItems] = useState<AdminCheer[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('all')
+  const [diag, setDiag] = useState<ReportReadDiagnostics | null>(null)
 
   async function refresh() {
     setLoading(true)
     try {
       const list = await listAllCheers()
       setItems(list)
+      setDiag(getLastReportDiagnostics())
     } catch (e) {
       toast.error((e as Error).message)
     } finally {
@@ -58,6 +69,17 @@ export default function AdminCheersPage() {
     }
   }
 
+  async function handleClearReports(c: AdminCheer) {
+    if (!confirm(`@${c.nickname} 의 신고 ${c.reports}건을 초기화할까요? 되돌릴 수 없어요.`)) return
+    try {
+      const cleared = await clearReportsForCheer(c.id)
+      setItems((prev) => prev.map((p) => (p.id === c.id ? { ...p, reports: 0 } : p)))
+      toast.success(`신고 ${cleared}건을 초기화했어요`)
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
   const filtered = items.filter((c) => {
     if (tab === 'reported') return c.reports > 0
     if (tab === 'hidden') return c.isHidden
@@ -72,6 +94,48 @@ export default function AdminCheersPage() {
           새로고침
         </button>
       </header>
+
+      {diag && (
+        <div
+          className={cn(
+            'space-y-2 rounded-lg border p-3 text-caption',
+            diag.ok
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-red-200 bg-red-50 text-red-700',
+          )}
+        >
+          {diag.ok ? (
+            <>
+              <div>
+                [신고 진단] reports 읽기 OK · 전체 {diag.totalDocs}건 · 신고된 응원{' '}
+                {diag.distinctCheers}개 · 응원 목록과 매칭{' '}
+                {diag.reportedCheerIds.filter((id) => items.some((c) => c.id === id))
+                  .length}
+                개
+              </div>
+              {diag.reportedCheerIds.length > 0 && (
+                <ul className="space-y-0.5 font-mono text-[11px]">
+                  {diag.reportedCheerIds.map((rid) => {
+                    const matched = items.find((c) => c.id === rid)
+                    return (
+                      <li key={rid}>
+                        {matched ? '✅' : '❌'} <code>{rid}</code>
+                        {matched
+                          ? ` → @${matched.nickname}: ${matched.content.slice(0, 30)}…`
+                          : ' → 매칭되는 응원 없음 (삭제됐거나 ID 불일치)'}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </>
+          ) : (
+            <>
+              [신고 진단] reports 컬렉션 읽기 실패: <code>{diag.error}</code>
+            </>
+          )}
+        </div>
+      )}
 
       <ul role="tablist" aria-label="응원 필터" className="flex gap-2 border-b border-gray-200">
         {(
@@ -157,6 +221,16 @@ export default function AdminCheersPage() {
                   >
                     <TrashIcon className="h-4 w-4" aria-hidden="true" /> 삭제
                   </button>
+                  {c.reports > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleClearReports(c)}
+                      className="btn-secondary text-body-small"
+                    >
+                      <ArrowUturnLeftIcon className="h-4 w-4" aria-hidden="true" /> 신고
+                      초기화
+                    </button>
+                  )}
                 </div>
               </article>
             </li>

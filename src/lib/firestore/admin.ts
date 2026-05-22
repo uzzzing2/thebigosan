@@ -17,8 +17,10 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import { getDb } from '@/lib/firebase'
-import type { PressCategory } from '@/lib/data/press'
+import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage'
+import { getDb, getStorageClient } from '@/lib/firebase'
+import { pressItems, type PressCategory } from '@/lib/data/press'
+import { INSTAGRAM_POSTS } from '@/lib/data/instagram'
 
 /* ────────────────────────────────────────────────
  * Cheers admin operations
@@ -33,10 +35,61 @@ export interface AdminCheer {
   isHidden: boolean
 }
 
+export interface ReportReadDiagnostics {
+  ok: boolean
+  totalDocs: number
+  distinctCheers: number
+  reportedCheerIds: string[]
+  error?: string
+}
+
+let _lastReportDiagnostics: ReportReadDiagnostics = {
+  ok: false,
+  totalDocs: 0,
+  distinctCheers: 0,
+  reportedCheerIds: [],
+  error: 'not loaded yet',
+}
+
+export function getLastReportDiagnostics(): ReportReadDiagnostics {
+  return _lastReportDiagnostics
+}
+
+async function getReportCountsByCheerId(): Promise<Map<string, number>> {
+  const db = getDb()
+  const counts = new Map<string, number>()
+  try {
+    const snap = await getDocs(collection(db, 'reports'))
+    snap.docs.forEach((d) => {
+      const cheerId = (d.data() as { cheerId?: string }).cheerId
+      if (cheerId) counts.set(cheerId, (counts.get(cheerId) ?? 0) + 1)
+    })
+    _lastReportDiagnostics = {
+      ok: true,
+      totalDocs: snap.size,
+      distinctCheers: counts.size,
+      reportedCheerIds: Array.from(counts.keys()),
+    }
+    console.info(
+      `[admin] reports read OK — totalDocs=${snap.size}, distinctCheers=${counts.size}, cheerIds=${JSON.stringify(Array.from(counts.keys()))}`,
+    )
+  } catch (e) {
+    _lastReportDiagnostics = {
+      ok: false,
+      totalDocs: 0,
+      distinctCheers: 0,
+      reportedCheerIds: [],
+      error: (e as Error).message,
+    }
+    console.warn('[admin] failed to read reports collection — report counts will be 0', e)
+  }
+  return counts
+}
+
 export async function listAllCheers(max = 200): Promise<AdminCheer[]> {
   const db = getDb()
   const q = query(collection(db, 'cheers'), orderBy('createdAt', 'desc'), limit(max))
-  const snap = await getDocs(q)
+  const [snap, reportCounts] = await Promise.all([getDocs(q), getReportCountsByCheerId()])
   return snap.docs.map((d) => {
     const data = d.data() as {
       nickname: string
@@ -50,7 +103,7 @@ export async function listAllCheers(max = 200): Promise<AdminCheer[]> {
       nickname: data.nickname,
       content: data.content,
       createdAt: data.createdAt.toDate().toISOString(),
-      reports: data.reports ?? 0,
+      reports: reportCounts.get(d.id) ?? 0,
       isHidden: data.isHidden ?? false,
     }
   })
@@ -66,15 +119,25 @@ export async function deleteCheer(id: string): Promise<void> {
   await deleteDoc(doc(db, 'cheers', id))
 }
 
+/**
+ * Delete all report docs that target this cheer.
+ * Returns the number of reports cleared.
+ */
+export async function clearReportsForCheer(cheerId: string): Promise<number> {
+  const db = getDb()
+  const q = query(collection(db, 'reports'), where('cheerId', '==', cheerId))
+  const snap = await getDocs(q)
+  await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, 'reports', d.id))))
+  return snap.size
+}
+
 export async function countAllCheers(): Promise<{ total: number; reported: number }> {
   const db = getDb()
-  const total = (await getCountFromServer(collection(db, 'cheers'))).data().count
-  const reported = (
-    await getCountFromServer(
-      query(collection(db, 'cheers'), where('reports', '>', 0)),
-    )
-  ).data().count
-  return { total, reported }
+  const [totalSnap, reportCounts] = await Promise.all([
+    getCountFromServer(collection(db, 'cheers')),
+    getReportCountsByCheerId(),
+  ])
+  return { total: totalSnap.data().count, reported: reportCounts.size }
 }
 
 /* ────────────────────────────────────────────────
@@ -177,6 +240,38 @@ export async function setPressPublished(id: string, isPublished: boolean): Promi
   await updateDoc(doc(db, 'press', id), { isPublished })
 }
 
+/**
+ * Seed the press collection from the static src/lib/data/press.ts list.
+ * Idempotent — items that already exist (by id) are skipped, never overwritten,
+ * so admin edits and new posts are preserved.
+ */
+export async function migratePressFromStatic(): Promise<{ created: number; skipped: number }> {
+  const db = getDb()
+  const results = await Promise.all(
+    pressItems.map(async (item) => {
+      const ref = doc(db, 'press', item.id)
+      const snap = await getDoc(ref)
+      if (snap.exists()) return 'skipped' as const
+      const data: Record<string, unknown> = {
+        category: item.category,
+        title: item.title,
+        body: item.body,
+        publishedAt: Timestamp.fromDate(new Date(item.publishedAt)),
+        mediaLinks: item.mediaLinks ?? [],
+        isPublished: true,
+        migratedAt: serverTimestamp(),
+      }
+      if (item.thumbnail) data.thumbnail = item.thumbnail
+      await setDoc(ref, data)
+      return 'created' as const
+    }),
+  )
+  return {
+    created: results.filter((r) => r === 'created').length,
+    skipped: results.filter((r) => r === 'skipped').length,
+  }
+}
+
 /* ────────────────────────────────────────────────
  * SNS curation CRUD
  * ──────────────────────────────────────────────── */
@@ -246,4 +341,85 @@ export async function updateSns(id: string, input: Partial<SnsInput>): Promise<v
 export async function deleteSns(id: string): Promise<void> {
   const db = getDb()
   await deleteDoc(doc(db, 'snsCuration', id))
+}
+
+/**
+ * Delete every doc in snsCuration. Destructive — returns the count.
+ * Note: this does NOT delete uploaded images in Firebase Storage.
+ */
+export async function deleteAllSns(): Promise<number> {
+  const db = getDb()
+  const snap = await getDocs(collection(db, 'snsCuration'))
+  await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, 'snsCuration', d.id))))
+  return snap.size
+}
+
+/**
+ * Renumber every snsCuration doc's `order` field to 1..N based on the
+ * current ascending order. Returns the count of updated docs.
+ */
+export async function normalizeSnsOrder(): Promise<number> {
+  const db = getDb()
+  const q = query(collection(db, 'snsCuration'), orderBy('order', 'asc'), limit(500))
+  const snap = await getDocs(q)
+  const updates = snap.docs
+    .map((d, i) => ({ id: d.id, current: (d.data() as { order?: number }).order ?? 0, next: i + 1 }))
+    .filter((u) => u.current !== u.next)
+  await Promise.all(updates.map((u) => updateDoc(doc(db, 'snsCuration', u.id), { order: u.next })))
+  return updates.length
+}
+
+export const SNS_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+
+/**
+ * Upload an image file to Firebase Storage under /sns/ and return the
+ * download URL. Caller should set the returned URL on the snsCuration
+ * doc's imageUrl field.
+ */
+export async function uploadSnsImage(file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('이미지 파일만 업로드 가능합니다')
+  }
+  if (file.size > SNS_IMAGE_MAX_BYTES) {
+    throw new Error('이미지 크기는 5MB 이하여야 합니다')
+  }
+  const storage = getStorageClient()
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const path = `sns/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext || 'jpg'}`
+  const ref = storageRef(storage, path)
+  await uploadBytes(ref, file, { contentType: file.type })
+  return getDownloadURL(ref)
+}
+
+/**
+ * Seed snsCuration from src/lib/data/instagram.ts. Idempotent —
+ * existing docs (matched by Instagram post id) are skipped, so admin
+ * edits and new posts are preserved. Migrated docs have empty
+ * imageUrl/caption; admin can fill those in later if desired (the
+ * public card falls back to a gradient placeholder when no image).
+ */
+export async function migrateSnsFromStatic(): Promise<{ created: number; skipped: number }> {
+  const db = getDb()
+  const now = Timestamp.now()
+  const results = await Promise.all(
+    INSTAGRAM_POSTS.map(async (post, i) => {
+      const ref = doc(db, 'snsCuration', post.id)
+      const snap = await getDoc(ref)
+      if (snap.exists()) return 'skipped' as const
+      await setDoc(ref, {
+        imageUrl: '',
+        caption: '',
+        originalUrl: post.url,
+        postedAt: now,
+        order: i + 1,
+        isActive: true,
+        migratedAt: serverTimestamp(),
+      })
+      return 'created' as const
+    }),
+  )
+  return {
+    created: results.filter((r) => r === 'created').length,
+    skipped: results.filter((r) => r === 'skipped').length,
+  }
 }

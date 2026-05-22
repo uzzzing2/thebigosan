@@ -2,10 +2,9 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Carousel, Reveal, SnsIcon } from '@/components/ui'
 import { SNS_LINKS } from '@/lib/constants'
-import { INSTAGRAM_POSTS, type InstagramPost } from '@/lib/data/instagram'
+import { INSTAGRAM_POSTS } from '@/lib/data/instagram'
+import { InstagramCurationList } from './InstagramCurationList'
 import { formatVideoDate, formatViews, getLatestVideos, type YoutubeVideo } from '@/lib/youtube'
-
-const VISIBLE_INSTAGRAM = INSTAGRAM_POSTS.slice(0, 8)
 
 function YoutubeCard({ item }: { item: YoutubeVideo }) {
   const views = formatViews(item.views)
@@ -32,39 +31,6 @@ function YoutubeCard({ item }: { item: YoutubeVideo }) {
           {formatVideoDate(item.published)}
           {views ? ` · 조회 ${views}` : ''}
         </p>
-      </div>
-    </a>
-  )
-}
-
-function InstagramCard({ post, index }: { post: InstagramPost; index: number }) {
-  return (
-    <a
-      href={post.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`인스타그램 게시물 ${index + 1} 새 창에서 열기`}
-      className="group relative block overflow-hidden rounded-2xl shadow-md transition-all duration-300 ease-out-soft hover:-translate-y-1 hover:shadow-lg"
-    >
-      <div
-        aria-hidden="true"
-        className="flex aspect-square items-center justify-center bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#F77737] text-white"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          className="h-10 w-10 opacity-90"
-        >
-          <rect x="3" y="3" width="18" height="18" rx="5" />
-          <circle cx="12" cy="12" r="4" />
-          <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
-        </svg>
-      </div>
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2.5">
-        <p className="text-caption font-medium text-white">최신 #{index + 1}</p>
       </div>
     </a>
   )
@@ -128,7 +94,7 @@ export async function SnsSection() {
           </ul>
         </div>
 
-        {/* Instagram — 임시 숨김 (썸네일 API 연결 전까지)
+        {/* Instagram */}
         <div className="mt-16">
           <Reveal>
             <div className="mb-5 flex items-center justify-between">
@@ -143,15 +109,8 @@ export async function SnsSection() {
               </Link>
             </div>
           </Reveal>
-          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {VISIBLE_INSTAGRAM.map((p, i) => (
-              <li key={p.id}>
-                <InstagramCard post={p} index={i} />
-              </li>
-            ))}
-          </ul>
+          <InstagramCurationList initialItems={INSTAGRAM_POSTS} max={8} />
         </div>
-        */}
 
         {/* All SNS channels */}
         <Reveal>
