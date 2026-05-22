@@ -37,7 +37,7 @@ export default function AboutPage() {
 
         {/* Background photo */}
         <Image
-          src="/images/intro.png"
+          src="/images/intro.jpg"
           alt=""
           fill
           priority

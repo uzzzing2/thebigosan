@@ -21,11 +21,6 @@ export const metadata: Metadata = {
     description: SLOGAN.tagging,
   },
   robots: { index: true, follow: true },
-  icons: {
-    icon: '/images/favicon-square.png',
-    shortcut: '/images/favicon-square.png',
-    apple: '/images/favicon-square.png',
-  },
 }
 
 export const viewport: Viewport = {
