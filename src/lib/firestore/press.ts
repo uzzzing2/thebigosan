@@ -47,7 +47,7 @@ export async function getAllPress(): Promise<PressItem[]> {
     const {
       collection,
       getDocs,
-      orderBy,
+      limit,
       query,
       where,
       getDb,
@@ -55,14 +55,18 @@ export async function getAllPress(): Promise<PressItem[]> {
     } = await loadFirebase()
     if (!isFirebaseConfigured) return staticPress
     const db = getDb()
+    // Filter by isPublished (required by Firestore rule for anonymous reads);
+    // sort by publishedAt desc client-side to avoid needing a composite index.
     const q = query(
       collection(db, COLLECTION),
       where('isPublished', '==', true),
-      orderBy('publishedAt', 'desc'),
+      limit(500),
     )
     const snap = await getDocs(q)
     if (snap.empty) return staticPress
-    return snap.docs.map((d) => docToPressItem(d.id, d.data() as PressDocLike))
+    return snap.docs
+      .map((d) => docToPressItem(d.id, d.data() as PressDocLike))
+      .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1))
   } catch (err) {
     console.error('[press] getAllPress failed, falling back to static', err)
     return staticPress
