@@ -100,7 +100,7 @@ export default function AdminPressListPage() {
       {missingStaticCount > 0 && !loading && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-caption text-blue-700">
           정적 파일에 있는 보도자료 {staticPress.length}건 중 {missingStaticCount}건이 아직
-          Firestore에 없습니다. "기존 보도자료 가져오기" 버튼을 누르면 누락된 항목만 추가되며,
+          Firestore에 없습니다. &ldquo;기존 보도자료 가져오기&rdquo; 버튼을 누르면 누락된 항목만 추가되며,
           이미 있는 항목과 어드민에서 작성한 새 글은 그대로 유지됩니다.
         </div>
       )}

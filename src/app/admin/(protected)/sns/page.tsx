@@ -328,7 +328,7 @@ export default function AdminSnsPage() {
       {missingStaticCount > 0 && !loading && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-caption text-blue-700">
           정적 파일에 있는 인스타 게시물 {INSTAGRAM_POSTS.length}건 중 {missingStaticCount}건이
-          아직 Firestore에 없습니다. "기존 인스타 게시물 가져오기" 버튼을 누르면 누락된
+          아직 Firestore에 없습니다. &ldquo;기존 인스타 게시물 가져오기&rdquo; 버튼을 누르면 누락된
           항목만 추가됩니다. 마이그레이션된 항목은 이미지 URL이 비어있어 그라데이션 플레이스홀더로
           표시되며, 필요 시 편집 기능으로 이미지를 채울 수 있습니다.
         </div>
