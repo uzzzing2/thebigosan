@@ -91,10 +91,13 @@ export default function AdminPressListPage() {
   const [migrating, setMigrating] = useState(false)
   const [newsOpen, setNewsOpen] = useState(false)
   const [newsQuery, setNewsQuery] = useState('이권재')
+  const [newsSort, setNewsSort] = useState<'date' | 'sim'>('date')
   const [newsLoading, setNewsLoading] = useState(false)
   const [newsResults, setNewsResults] = useState<NewsItem[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [importing, setImporting] = useState(false)
+
+  const QUERY_PRESETS = ['이권재', '이권재 오산', '이권재 공약', '이권재 후보']
 
   // Build dedup sets from existing press: URLs (from mediaLinks) + titles
   const existingUrls = new Set<string>()
@@ -139,25 +142,33 @@ export default function AdminPressListPage() {
     }
   }
 
-  async function handleSearchNews(e?: React.FormEvent) {
+  async function handleSearchNews(e?: React.FormEvent, overrideQuery?: string) {
     e?.preventDefault()
-    if (!newsQuery.trim()) {
+    const q = (overrideQuery ?? newsQuery).trim()
+    if (!q) {
       toast.error('검색어를 입력해주세요')
       return
     }
+    if (overrideQuery) setNewsQuery(overrideQuery)
     setNewsLoading(true)
     setSelected(new Set())
     try {
       const r = await fetch(
-        `/api/news?q=${encodeURIComponent(newsQuery.trim())}&display=30&sort=date`,
+        `/api/news?q=${encodeURIComponent(q)}&display=50&sort=${newsSort}`,
       )
       if (!r.ok) {
         const data = (await r.json().catch(() => ({}))) as { error?: string }
         throw new Error(data.error || `API error ${r.status}`)
       }
       const data = (await r.json()) as { items?: NewsItem[] }
-      setNewsResults(data.items ?? [])
-      if (!data.items || data.items.length === 0) {
+      // Boost: articles with our candidate name in title rank first
+      const items = (data.items ?? []).slice().sort((a, b) => {
+        const at = stripHtml(a.title).includes('이권재') ? 0 : 1
+        const bt = stripHtml(b.title).includes('이권재') ? 0 : 1
+        return at - bt
+      })
+      setNewsResults(items)
+      if (items.length === 0) {
         toast.info('검색 결과가 없어요')
       }
     } catch (err) {
@@ -291,24 +302,51 @@ export default function AdminPressListPage() {
             </button>
           </header>
 
-          <form onSubmit={handleSearchNews} className="flex flex-wrap gap-2">
-            <div className="flex-1 min-w-[220px]">
-              <Input
-                value={newsQuery}
-                onChange={(e) => setNewsQuery(e.target.value)}
-                placeholder='예: 이권재, 이권재 오산, "이권재" 등'
-              />
+          <form onSubmit={handleSearchNews} className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <div className="flex-1 min-w-[220px]">
+                <Input
+                  value={newsQuery}
+                  onChange={(e) => setNewsQuery(e.target.value)}
+                  placeholder='예: 이권재, 이권재 오산, "이권재" 등'
+                />
+              </div>
+              <select
+                value={newsSort}
+                onChange={(e) => setNewsSort(e.target.value as 'date' | 'sim')}
+                className="rounded-lg bg-gray-100 px-3 py-2.5 text-body-small focus:bg-white"
+                aria-label="정렬 기준"
+              >
+                <option value="date">최신순</option>
+                <option value="sim">관련도순</option>
+              </select>
+              <button type="submit" disabled={newsLoading} className="btn-primary">
+                <MagnifyingGlassIcon className="h-5 w-5" aria-hidden="true" />
+                {newsLoading ? '검색 중…' : '검색'}
+              </button>
             </div>
-            <button type="submit" disabled={newsLoading} className="btn-primary">
-              <MagnifyingGlassIcon className="h-5 w-5" aria-hidden="true" />
-              {newsLoading ? '검색 중…' : '검색'}
-            </button>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-caption text-gray-500">빠른 검색:</span>
+              {QUERY_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => handleSearchNews(undefined, preset)}
+                  disabled={newsLoading}
+                  className={cn(
+                    'rounded-full bg-gray-100 px-2.5 py-1 text-caption text-gray-700 transition-colors hover:bg-red-50 hover:text-red-500',
+                    newsLoading && 'opacity-50',
+                  )}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
           </form>
 
           <p className="text-caption text-gray-500">
-            네이버 뉴스에서 검색해 결과를 미리 봅니다. 등록하고 싶은 기사만 체크 후 <strong>아래 등록 버튼</strong>을 눌러주세요. 이미
-            추가된 글은 자동으로 비활성화됩니다. 등록 시 모두 비공개 상태로 들어가며, 어드민에서 개별 검토 후 공개로 전환할 수
-            있어요.
+            네이버 뉴스에서 최대 50건 검색. 제목에 &ldquo;이권재&rdquo;가 들어간 기사가 위로 정렬됩니다. 등록 시 모두 비공개 상태로
+            들어가며 어드민에서 검토 후 공개로 전환할 수 있어요. 이미 등록된 글(URL/제목 매칭)은 자동 비활성됩니다.
           </p>
 
           {newsResults.length > 0 && (
