@@ -14,6 +14,7 @@ import {
 import { Input, Tag } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import {
+  addPressMediaLink,
   createPress,
   listAllPress,
   migratePressFromStatic,
@@ -73,6 +74,57 @@ function extractPublisher(url: string): string {
   } catch {
     return '언론'
   }
+}
+
+// Title-similarity helpers used to suggest "이 글에 추가" when a search
+// result looks like coverage of an existing press item.
+const TITLE_STOPWORDS = new Set([
+  '이권재', '후보', '오산', '시장', '오산시장', '6.3', '6·3', '지선', '지방선거',
+  '발표', '추진', '약속', '강조', '제안', '주장', '말했다', '밝혔다', '있다', '없다',
+  '6.3지선', '예비후보', '캠프', '선거', '시민', '경기',
+])
+
+function normalizeTitle(t: string): string {
+  return stripHtml(t)
+    .replace(/\[.*?\]/g, ' ')
+    .replace(/[…"'""''「」『』·]/g, ' ')
+    .toLowerCase()
+    .trim()
+}
+
+function topicTokens(title: string): Set<string> {
+  return new Set(
+    normalizeTitle(title)
+      .split(/[\s,.()/\-—:!?]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 2 && !TITLE_STOPWORDS.has(t)),
+  )
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0
+  let intersect = 0
+  for (const t of a) if (b.has(t)) intersect += 1
+  return intersect / (a.size + b.size - intersect)
+}
+
+function findSimilarPress(
+  news: NewsItem,
+  existing: AdminPressItem[],
+  threshold = 0.3,
+): AdminPressItem | null {
+  const tokens = topicTokens(news.title)
+  if (tokens.size < 2) return null
+  let best: AdminPressItem | null = null
+  let bestScore = 0
+  for (const item of existing) {
+    const score = jaccard(tokens, topicTokens(item.title))
+    if (score > bestScore) {
+      bestScore = score
+      best = item
+    }
+  }
+  return bestScore >= threshold ? best : null
 }
 
 function parsePubDate(rfcDate: string): string {
@@ -195,6 +247,29 @@ export default function AdminPressListPage() {
 
   function deselectAll() {
     setSelected(new Set())
+  }
+
+  async function handleAddToExisting(news: NewsItem, pressId: string) {
+    const publisher = extractPublisher(news.originallink || news.link)
+    try {
+      await addPressMediaLink(pressId, {
+        name: publisher,
+        url: news.originallink || news.link,
+      })
+      toast.success(`기존 글에 관련 보도로 추가했어요`)
+      // Remove from results + clear selection for this item
+      setNewsResults((prev) =>
+        prev.filter((n) => n.originallink !== news.originallink),
+      )
+      setSelected((prev) => {
+        const next = new Set(prev)
+        next.delete(news.originallink)
+        return next
+      })
+      await refresh()
+    } catch (err) {
+      toast.error((err as Error).message)
+    }
   }
 
   async function handleImportSelected() {
@@ -379,53 +454,86 @@ export default function AdminPressListPage() {
                   const checked = selected.has(news.originallink)
                   const publisher = extractPublisher(news.originallink || news.link)
                   const date = parsePubDate(news.pubDate)
+                  const similar = dup ? null : findSimilarPress(news, items)
                   return (
                     <li key={news.originallink || news.link}>
-                      <label
+                      <div
                         className={cn(
-                          'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
+                          'rounded-lg border transition-colors',
                           dup
-                            ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
+                            ? 'border-gray-200 bg-gray-50 opacity-60'
                             : checked
                               ? 'border-red-300 bg-red-50'
-                              : 'border-gray-200 bg-white hover:bg-cream-50',
+                              : similar
+                                ? 'border-amber-300 bg-amber-50/50'
+                                : 'border-gray-200 bg-white hover:bg-cream-50',
                         )}
                       >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={dup}
-                          onChange={() => toggleSelect(news.originallink)}
-                          className="mt-1 h-4 w-4 cursor-pointer accent-red-500"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 text-caption text-gray-500">
-                            <span className="font-medium text-gray-700">{publisher}</span>
-                            <span>·</span>
-                            <span>{date}</span>
-                            {dup && (
-                              <span className="rounded-md bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-700">
-                                이미 추가됨
-                              </span>
-                            )}
+                        <label
+                          className={cn(
+                            'flex items-start gap-3 p-3',
+                            dup ? 'cursor-not-allowed' : 'cursor-pointer',
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={dup}
+                            onChange={() => toggleSelect(news.originallink)}
+                            className="mt-1 h-4 w-4 cursor-pointer accent-red-500"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 text-caption text-gray-500">
+                              <span className="font-medium text-gray-700">{publisher}</span>
+                              <span>·</span>
+                              <span>{date}</span>
+                              {dup && (
+                                <span className="rounded-md bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-700">
+                                  이미 추가됨
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-body font-medium text-gray-900">
+                              {stripHtml(news.title)}
+                            </p>
+                            <p className="mt-1 line-clamp-2 text-body-small text-gray-700">
+                              {stripHtml(news.description)}
+                            </p>
+                            <a
+                              href={news.originallink || news.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-1 inline-block truncate text-caption text-red-500 hover:underline"
+                            >
+                              {news.originallink || news.link} ↗
+                            </a>
                           </div>
-                          <p className="mt-1 text-body font-medium text-gray-900">
-                            {stripHtml(news.title)}
-                          </p>
-                          <p className="mt-1 line-clamp-2 text-body-small text-gray-700">
-                            {stripHtml(news.description)}
-                          </p>
-                          <a
-                            href={news.originallink || news.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="mt-1 inline-block truncate text-caption text-red-500 hover:underline"
-                          >
-                            {news.originallink || news.link} ↗
-                          </a>
-                        </div>
-                      </label>
+                        </label>
+                        {similar && (
+                          <div className="flex flex-wrap items-center gap-2 border-t border-amber-200 bg-amber-50 px-3 py-2 text-caption">
+                            <span aria-hidden="true">💡</span>
+                            <span className="text-amber-900">
+                              관련 기존 글:{' '}
+                              <span className="font-medium">
+                                {similar.title.length > 50
+                                  ? similar.title.slice(0, 50) + '…'
+                                  : similar.title}
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                handleAddToExisting(news, similar.id)
+                              }}
+                              className="ml-auto rounded-md bg-amber-200 px-2.5 py-1 text-caption font-medium text-amber-900 hover:bg-amber-300"
+                            >
+                              이 글에 관련 보도로 추가 →
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </li>
                   )
                 })}

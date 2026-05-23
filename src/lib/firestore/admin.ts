@@ -241,6 +241,27 @@ export async function setPressPublished(id: string, isPublished: boolean): Promi
 }
 
 /**
+ * Append a media link to an existing press doc's mediaLinks array.
+ * Skips if the URL already exists. Used by /admin/press news import
+ * to attach related coverage to an existing entry.
+ */
+export async function addPressMediaLink(
+  pressId: string,
+  link: { name: string; url: string },
+): Promise<void> {
+  const db = getDb()
+  const ref = doc(db, 'press', pressId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) throw new Error('대상 보도자료를 찾을 수 없어요')
+  const data = snap.data() as { mediaLinks?: { name: string; url: string }[] }
+  const existing = data.mediaLinks ?? []
+  if (existing.some((m) => m.url === link.url)) {
+    throw new Error('이미 등록된 링크예요')
+  }
+  await updateDoc(ref, { mediaLinks: [...existing, link] })
+}
+
+/**
  * Seed the press collection from the static src/lib/data/press.ts list.
  * Idempotent — items that already exist (by id) are skipped, never overwritten,
  * so admin edits and new posts are preserved.
