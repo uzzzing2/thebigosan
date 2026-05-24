@@ -189,6 +189,10 @@ export default function AdminPressListPage() {
 
   const QUERY_PRESETS = ['이권재', '이권재 오산', '이권재 공약', '이권재 후보']
 
+  // Per-card "pick existing press to attach to" inline picker
+  const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null)
+  const [pickerQuery, setPickerQuery] = useState('')
+
   // Build dedup sets from existing press: URLs (from mediaLinks) + titles
   const existingUrls = new Set<string>()
   const existingTitles = new Set<string>()
@@ -655,6 +659,90 @@ export default function AdminPressListPage() {
                               >
                                 이 글에 관련 보도로 추가 →
                               </button>
+                            </div>
+                          )}
+                          {!dup && (
+                            <div className="border-t border-gray-200 bg-gray-50 px-3 py-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  setPickerOpenFor(
+                                    pickerOpenFor === news.originallink
+                                      ? null
+                                      : news.originallink,
+                                  )
+                                  setPickerQuery('')
+                                }}
+                                className="text-caption text-blue-600 hover:underline"
+                              >
+                                📎 다른 기존 글 직접 선택해서 추가
+                                {pickerOpenFor === news.originallink ? ' ▲' : ' ▾'}
+                              </button>
+                              {pickerOpenFor === news.originallink && (
+                                <div className="mt-2 space-y-2">
+                                  <input
+                                    type="text"
+                                    value={pickerQuery}
+                                    onChange={(e) => setPickerQuery(e.target.value)}
+                                    placeholder="제목으로 검색 (비우면 최근 20건)"
+                                    autoFocus
+                                    className="w-full rounded-md bg-white px-3 py-1.5 text-body-small focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                                  />
+                                  <ul className="max-h-[240px] divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-200 bg-white">
+                                    {items
+                                      .filter((p) =>
+                                        pickerQuery.trim() === ''
+                                          ? true
+                                          : p.title
+                                              .toLowerCase()
+                                              .includes(pickerQuery.trim().toLowerCase()),
+                                      )
+                                      .slice(0, 30)
+                                      .map((p) => (
+                                        <li key={p.id}>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              handleAddToExisting(news, p.id)
+                                              setPickerOpenFor(null)
+                                            }}
+                                            className="block w-full px-3 py-2 text-left hover:bg-blue-50"
+                                          >
+                                            <div className="truncate text-body-small text-gray-900">
+                                              {p.title}
+                                            </div>
+                                            <div className="mt-0.5 flex items-center gap-2 text-caption text-gray-500">
+                                              <span>{p.publishedAt}</span>
+                                              <span>·</span>
+                                              <span>
+                                                {p.mediaLinks.length > 0
+                                                  ? `링크 ${p.mediaLinks.length}개`
+                                                  : '링크 없음'}
+                                              </span>
+                                              {!p.isPublished && (
+                                                <span className="rounded bg-gray-100 px-1.5 text-[10px] text-gray-600">
+                                                  비공개
+                                                </span>
+                                              )}
+                                            </div>
+                                          </button>
+                                        </li>
+                                      ))}
+                                    {items.filter((p) =>
+                                      pickerQuery.trim() === ''
+                                        ? true
+                                        : p.title
+                                            .toLowerCase()
+                                            .includes(pickerQuery.trim().toLowerCase()),
+                                    ).length === 0 && (
+                                      <li className="px-3 py-2 text-caption text-gray-500">
+                                        검색 결과 없음
+                                      </li>
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
