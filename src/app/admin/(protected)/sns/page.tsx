@@ -73,10 +73,15 @@ export default function AdminSnsPage() {
     }
     setSaving(true)
     try {
-      const maxOrder = items.reduce((m, i) => Math.max(m, i.order), 0)
+      // New items go to the TOP of the list (smallest order = position #1).
+      const minOrder = items.reduce(
+        (m, i) => Math.min(m, i.order),
+        Number.POSITIVE_INFINITY,
+      )
+      const nextOrder = draft.order || (Number.isFinite(minOrder) ? minOrder - 1 : 1)
       await createSns({
         ...draft,
-        order: draft.order || maxOrder + 1,
+        order: nextOrder,
       })
       toast.success('큐레이션 항목을 추가했어요')
       setDraft(EMPTY)
