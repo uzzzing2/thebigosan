@@ -11,7 +11,7 @@ import {
   PlusIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { Input, Tag } from '@/components/ui'
+import { Input, Modal, Tag } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import {
   addPressMediaLink,
@@ -186,6 +186,10 @@ export default function AdminPressListPage() {
   const [newsResults, setNewsResults] = useState<NewsItem[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [importing, setImporting] = useState(false)
+
+  // Main-article chooser modal — opens when merging multiple news into one press
+  const [chooserGroup, setChooserGroup] = useState<NewsItem[] | null>(null)
+  const [chooserMainIndex, setChooserMainIndex] = useState(0)
 
   const QUERY_PRESETS = ['이권재', '이권재 오산', '이권재 공약', '이권재 후보']
 
@@ -385,24 +389,39 @@ export default function AdminPressListPage() {
     return undefined
   }
 
-  async function handleImportGroup(group: NewsItem[]) {
+  /** Opens the main-chooser modal — user picks which article becomes the press main. */
+  function handleImportGroup(group: NewsItem[]) {
     if (group.length === 0) return
-    if (
-      !confirm(
-        `${group.length}건을 하나의 글로 묶어서 등록할까요?\n첫 기사가 메인이 되고 나머지는 관련 보도 링크로 추가됩니다.`,
-      )
-    )
+    if (group.length === 1) {
+      // Single item: no chooser needed, register directly via the standard path
+      void handleImportSelected()
       return
+    }
+    // Pre-select the most recent article as default main
+    const indices = group.map((_, i) => i)
+    indices.sort((a, b) => new Date(group[b].pubDate).getTime() - new Date(group[a].pubDate).getTime())
+    setChooserGroup(group)
+    setChooserMainIndex(indices[0] ?? 0)
+  }
+
+  async function confirmGroupImport() {
+    const group = chooserGroup
+    if (!group || group.length === 0) return
     setImporting(true)
     try {
-      const main = group[0]
+      const main = group[chooserMainIndex] ?? group[0]
       const cleanTitle = stripHtml(main.title).trim()
       const cleanDesc = stripHtml(main.description).trim()
-      const mediaLinks = group.map((news) => ({
+      // Put main first in mediaLinks for ordering consistency, rest in original order
+      const reordered = [main, ...group.filter((_, i) => i !== chooserMainIndex)]
+      const mediaLinks = reordered.map((news) => ({
         name: extractPublisher(news.originallink || news.link),
         url: news.originallink || news.link,
       }))
-      const thumbnail = await firstAvailableOgImage(group)
+      // og:image fallback: try main first, then others by date
+      const thumbnail =
+        (await fetchOgImage(main.originallink || main.link)) ??
+        (await firstAvailableOgImage(group.filter((_, i) => i !== chooserMainIndex)))
       await createPress({
         category: '정책',
         title: cleanTitle,
@@ -417,7 +436,6 @@ export default function AdminPressListPage() {
           ? `${group.length}건을 묶어서 1개 글로 등록했어요 (썸네일 자동 첨부)`
           : `${group.length}건을 묶어서 1개 글로 등록했어요 (썸네일 없음 — 수동 업로드 필요)`,
       )
-      // Remove handled items from results + selection
       const urls = new Set(group.map((g) => g.originallink))
       setNewsResults((prev) => prev.filter((n) => !urls.has(n.originallink)))
       setSelected((prev) => {
@@ -425,6 +443,7 @@ export default function AdminPressListPage() {
         for (const u of urls) next.delete(u)
         return next
       })
+      setChooserGroup(null)
       await refresh()
     } catch (err) {
       toast.error((err as Error).message)
@@ -986,6 +1005,82 @@ export default function AdminPressListPage() {
           })()}
         </section>
       )}
+
+      <Modal
+        open={chooserGroup !== null}
+        onOpenChange={(o) => !o && setChooserGroup(null)}
+        title="대표 기사 선택"
+        description={`${chooserGroup?.length ?? 0}건 중 대표가 될 기사를 선택하세요. 선택한 기사의 제목·본문·게시일이 등록될 글의 메인이 됩니다. 나머지는 관련 보도 링크로 모두 첨부됩니다.`}
+        size="lg"
+      >
+        {chooserGroup && (
+          <div className="space-y-4">
+            <ul className="space-y-2 max-h-[55vh] overflow-y-auto">
+              {chooserGroup.map((news, idx) => {
+                const publisher = extractPublisher(news.originallink || news.link)
+                const date = parsePubDate(news.pubDate)
+                const checked = chooserMainIndex === idx
+                return (
+                  <li key={news.originallink || news.link}>
+                    <label
+                      className={cn(
+                        'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
+                        checked
+                          ? 'border-red-400 bg-red-50'
+                          : 'border-gray-200 bg-white hover:bg-gray-50',
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="main-article"
+                        checked={checked}
+                        onChange={() => setChooserMainIndex(idx)}
+                        className="mt-1 h-4 w-4 cursor-pointer accent-red-500"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 text-caption text-gray-500">
+                          <span className="font-medium text-gray-700">{publisher}</span>
+                          <span>·</span>
+                          <span>{date}</span>
+                          {checked && (
+                            <span className="rounded-md bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                              ★ 대표
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-body font-medium text-gray-900">
+                          {stripHtml(news.title)}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-body-small text-gray-700">
+                          {stripHtml(news.description)}
+                        </p>
+                      </div>
+                    </label>
+                  </li>
+                )
+              })}
+            </ul>
+            <div className="flex justify-end gap-2 border-t border-gray-200 pt-3">
+              <button
+                type="button"
+                onClick={() => setChooserGroup(null)}
+                className="btn-secondary"
+                disabled={importing}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={confirmGroupImport}
+                disabled={importing}
+                className="btn-primary"
+              >
+                {importing ? '등록 중…' : '이 대표로 묶어서 등록'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {missingStaticCount > 0 && !loading && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-caption text-blue-700">
