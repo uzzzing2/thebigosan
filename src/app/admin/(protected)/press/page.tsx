@@ -127,6 +127,44 @@ function findSimilarPress(
   return bestScore >= threshold ? best : null
 }
 
+/**
+ * Cluster news items by title similarity (union-find).
+ * Returns an array where each element is a cluster (group) of one or more
+ * news items that look like coverage of the same story.
+ * Single-item clusters are also returned so the caller can iterate uniformly.
+ */
+function clusterByTitle(items: NewsItem[], threshold = 0.35): NewsItem[][] {
+  const n = items.length
+  const parent = Array.from({ length: n }, (_, i) => i)
+  const tokens = items.map((it) => topicTokens(it.title))
+  function find(x: number): number {
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]]
+      x = parent[x]
+    }
+    return x
+  }
+  function union(a: number, b: number) {
+    const ra = find(a)
+    const rb = find(b)
+    if (ra !== rb) parent[ra] = rb
+  }
+  for (let i = 0; i < n; i += 1) {
+    if (tokens[i].size < 2) continue
+    for (let j = i + 1; j < n; j += 1) {
+      if (tokens[j].size < 2) continue
+      if (jaccard(tokens[i], tokens[j]) >= threshold) union(i, j)
+    }
+  }
+  const groups = new Map<number, number[]>()
+  for (let i = 0; i < n; i += 1) {
+    const r = find(i)
+    if (!groups.has(r)) groups.set(r, [])
+    groups.get(r)!.push(i)
+  }
+  return Array.from(groups.values()).map((idxs) => idxs.map((i) => items[i]))
+}
+
 function parsePubDate(rfcDate: string): string {
   try {
     const d = new Date(rfcDate)
@@ -272,6 +310,61 @@ export default function AdminPressListPage() {
     }
   }
 
+  async function fetchOgImage(url: string): Promise<string | undefined> {
+    try {
+      const r = await fetch(`/api/og-image?url=${encodeURIComponent(url)}`)
+      if (!r.ok) return undefined
+      const d = (await r.json()) as { image?: string | null }
+      return d.image ?? undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  async function handleImportGroup(group: NewsItem[]) {
+    if (group.length === 0) return
+    if (
+      !confirm(
+        `${group.length}건을 하나의 글로 묶어서 등록할까요?\n첫 기사가 메인이 되고 나머지는 관련 보도 링크로 추가됩니다.`,
+      )
+    )
+      return
+    setImporting(true)
+    try {
+      const main = group[0]
+      const cleanTitle = stripHtml(main.title).trim()
+      const cleanDesc = stripHtml(main.description).trim()
+      const mediaLinks = group.map((news) => ({
+        name: extractPublisher(news.originallink || news.link),
+        url: news.originallink || news.link,
+      }))
+      const thumbnail = await fetchOgImage(main.originallink || main.link)
+      await createPress({
+        category: '정책',
+        title: cleanTitle,
+        body: `<p>${cleanDesc}</p>`,
+        publishedAt: parsePubDate(main.pubDate),
+        mediaLinks,
+        thumbnail,
+        isPublished: false,
+      })
+      toast.success(`${group.length}건을 묶어서 1개 글로 등록했어요 (비공개)`)
+      // Remove handled items from results + selection
+      const urls = new Set(group.map((g) => g.originallink))
+      setNewsResults((prev) => prev.filter((n) => !urls.has(n.originallink)))
+      setSelected((prev) => {
+        const next = new Set(prev)
+        for (const u of urls) next.delete(u)
+        return next
+      })
+      await refresh()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setImporting(false)
+    }
+  }
+
   async function handleImportSelected() {
     const toImport = newsResults.filter((n) => selected.has(n.originallink))
     if (toImport.length === 0) {
@@ -287,12 +380,14 @@ export default function AdminPressListPage() {
         const cleanTitle = stripHtml(news.title).trim()
         const cleanDesc = stripHtml(news.description).trim()
         const publisher = extractPublisher(news.originallink || news.link)
+        const thumbnail = await fetchOgImage(news.originallink || news.link)
         await createPress({
           category: '정책',
           title: cleanTitle,
           body: `<p>${cleanDesc}</p>`,
           publishedAt: parsePubDate(news.pubDate),
           mediaLinks: [{ name: publisher, url: news.originallink || news.link }],
+          thumbnail,
           isPublished: false,
         })
         created += 1
@@ -449,90 +544,171 @@ export default function AdminPressListPage() {
               </div>
 
               <ul className="space-y-2 max-h-[60vh] overflow-y-auto">
-                {newsResults.map((news) => {
-                  const dup = isDuplicate(news)
-                  const checked = selected.has(news.originallink)
-                  const publisher = extractPublisher(news.originallink || news.link)
-                  const date = parsePubDate(news.pubDate)
-                  const similar = dup ? null : findSimilarPress(news, items)
-                  return (
-                    <li key={news.originallink || news.link}>
-                      <div
-                        className={cn(
-                          'rounded-lg border transition-colors',
-                          dup
-                            ? 'border-gray-200 bg-gray-50 opacity-60'
-                            : checked
-                              ? 'border-red-300 bg-red-50'
-                              : similar
-                                ? 'border-amber-300 bg-amber-50/50'
-                                : 'border-gray-200 bg-white hover:bg-cream-50',
-                        )}
-                      >
-                        <label
+                {clusterByTitle(newsResults).map((cluster, ci) => {
+                  if (cluster.length === 1) {
+                    const news = cluster[0]
+                    const dup = isDuplicate(news)
+                    const checked = selected.has(news.originallink)
+                    const publisher = extractPublisher(news.originallink || news.link)
+                    const date = parsePubDate(news.pubDate)
+                    const similar = dup ? null : findSimilarPress(news, items)
+                    return (
+                      <li key={news.originallink || news.link}>
+                        <div
                           className={cn(
-                            'flex items-start gap-3 p-3',
-                            dup ? 'cursor-not-allowed' : 'cursor-pointer',
+                            'rounded-lg border transition-colors',
+                            dup
+                              ? 'border-gray-200 bg-gray-50 opacity-60'
+                              : checked
+                                ? 'border-red-300 bg-red-50'
+                                : similar
+                                  ? 'border-amber-300 bg-amber-50/50'
+                                  : 'border-gray-200 bg-white hover:bg-cream-50',
                           )}
                         >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={dup}
-                            onChange={() => toggleSelect(news.originallink)}
-                            className="mt-1 h-4 w-4 cursor-pointer accent-red-500"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 text-caption text-gray-500">
-                              <span className="font-medium text-gray-700">{publisher}</span>
-                              <span>·</span>
-                              <span>{date}</span>
-                              {dup && (
-                                <span className="rounded-md bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-700">
-                                  이미 추가됨
-                                </span>
-                              )}
+                          <label
+                            className={cn(
+                              'flex items-start gap-3 p-3',
+                              dup ? 'cursor-not-allowed' : 'cursor-pointer',
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={dup}
+                              onChange={() => toggleSelect(news.originallink)}
+                              className="mt-1 h-4 w-4 cursor-pointer accent-red-500"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 text-caption text-gray-500">
+                                <span className="font-medium text-gray-700">{publisher}</span>
+                                <span>·</span>
+                                <span>{date}</span>
+                                {dup && (
+                                  <span className="rounded-md bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-700">
+                                    이미 추가됨
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 text-body font-medium text-gray-900">
+                                {stripHtml(news.title)}
+                              </p>
+                              <p className="mt-1 line-clamp-2 text-body-small text-gray-700">
+                                {stripHtml(news.description)}
+                              </p>
+                              <a
+                                href={news.originallink || news.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-1 inline-block truncate text-caption text-red-500 hover:underline"
+                              >
+                                {news.originallink || news.link} ↗
+                              </a>
                             </div>
-                            <p className="mt-1 text-body font-medium text-gray-900">
-                              {stripHtml(news.title)}
-                            </p>
-                            <p className="mt-1 line-clamp-2 text-body-small text-gray-700">
-                              {stripHtml(news.description)}
-                            </p>
-                            <a
-                              href={news.originallink || news.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="mt-1 inline-block truncate text-caption text-red-500 hover:underline"
-                            >
-                              {news.originallink || news.link} ↗
-                            </a>
-                          </div>
-                        </label>
-                        {similar && (
-                          <div className="flex flex-wrap items-center gap-2 border-t border-amber-200 bg-amber-50 px-3 py-2 text-caption">
-                            <span aria-hidden="true">💡</span>
-                            <span className="text-amber-900">
-                              관련 기존 글:{' '}
-                              <span className="font-medium">
-                                {similar.title.length > 50
-                                  ? similar.title.slice(0, 50) + '…'
-                                  : similar.title}
+                          </label>
+                          {similar && (
+                            <div className="flex flex-wrap items-center gap-2 border-t border-amber-200 bg-amber-50 px-3 py-2 text-caption">
+                              <span aria-hidden="true">💡</span>
+                              <span className="text-amber-900">
+                                관련 기존 글:{' '}
+                                <span className="font-medium">
+                                  {similar.title.length > 50
+                                    ? similar.title.slice(0, 50) + '…'
+                                    : similar.title}
+                                </span>
                               </span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                handleAddToExisting(news, similar.id)
-                              }}
-                              className="ml-auto rounded-md bg-amber-200 px-2.5 py-1 text-caption font-medium text-amber-900 hover:bg-amber-300"
-                            >
-                              이 글에 관련 보도로 추가 →
-                            </button>
-                          </div>
-                        )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  handleAddToExisting(news, similar.id)
+                                }}
+                                className="ml-auto rounded-md bg-amber-200 px-2.5 py-1 text-caption font-medium text-amber-900 hover:bg-amber-300"
+                              >
+                                이 글에 관련 보도로 추가 →
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    )
+                  }
+
+                  // Multi-item cluster — render as group
+                  const validCluster = cluster.filter((n) => !isDuplicate(n))
+                  return (
+                    <li key={`group-${ci}`}>
+                      <div className="rounded-lg border border-indigo-300 bg-indigo-50/40">
+                        <div className="flex flex-wrap items-center gap-2 border-b border-indigo-200 px-3 py-2">
+                          <span aria-hidden="true">🗂</span>
+                          <span className="text-body-small font-medium text-indigo-900">
+                            같은 사건으로 추정 · {cluster.length}건
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleImportGroup(validCluster)}
+                            disabled={importing || validCluster.length === 0}
+                            className="ml-auto rounded-md bg-indigo-500 px-2.5 py-1 text-caption font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
+                          >
+                            한 글로 묶어서 등록 (관련보도 {validCluster.length}건)
+                          </button>
+                        </div>
+                        <ul className="divide-y divide-indigo-100">
+                          {cluster.map((news) => {
+                            const dup = isDuplicate(news)
+                            const checked = selected.has(news.originallink)
+                            const publisher = extractPublisher(news.originallink || news.link)
+                            const date = parsePubDate(news.pubDate)
+                            return (
+                              <li key={news.originallink || news.link}>
+                                <label
+                                  className={cn(
+                                    'flex items-start gap-3 p-3',
+                                    dup
+                                      ? 'cursor-not-allowed opacity-60'
+                                      : 'cursor-pointer hover:bg-indigo-50',
+                                    checked && 'bg-red-50',
+                                  )}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={dup}
+                                    onChange={() => toggleSelect(news.originallink)}
+                                    className="mt-1 h-4 w-4 cursor-pointer accent-red-500"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 text-caption text-gray-500">
+                                      <span className="font-medium text-gray-700">
+                                        {publisher}
+                                      </span>
+                                      <span>·</span>
+                                      <span>{date}</span>
+                                      {dup && (
+                                        <span className="rounded-md bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-700">
+                                          이미 추가됨
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="mt-1 text-body-small font-medium text-gray-900">
+                                      {stripHtml(news.title)}
+                                    </p>
+                                    <a
+                                      href={news.originallink || news.link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="mt-0.5 inline-block truncate text-caption text-red-500 hover:underline"
+                                    >
+                                      {news.originallink || news.link} ↗
+                                    </a>
+                                  </div>
+                                </label>
+                              </li>
+                            )
+                          })}
+                        </ul>
                       </div>
                     </li>
                   )

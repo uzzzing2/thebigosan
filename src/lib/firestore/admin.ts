@@ -213,11 +213,18 @@ export interface PressInput {
 
 export async function createPress(input: PressInput): Promise<string> {
   const db = getDb()
-  const ref = await addDoc(collection(db, 'press'), {
-    ...input,
+  const data: Record<string, unknown> = {
+    category: input.category,
+    title: input.title,
+    body: input.body,
+    mediaLinks: input.mediaLinks ?? [],
+    isPublished: input.isPublished,
     publishedAt: Timestamp.fromDate(new Date(input.publishedAt)),
     createdAt: serverTimestamp(),
-  })
+  }
+  // Firestore rejects `undefined`; only include thumbnail if set.
+  if (input.thumbnail) data.thumbnail = input.thumbnail
+  const ref = await addDoc(collection(db, 'press'), data)
   return ref.id
 }
 
