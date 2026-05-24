@@ -381,6 +381,17 @@ export default function AdminPressListPage() {
     }
   }
 
+  async function handleImportSelectedAsGroup() {
+    const toImport = newsResults.filter((n) => selected.has(n.originallink))
+    if (toImport.length < 2) {
+      toast.error('묶어서 등록하려면 2건 이상 선택해주세요')
+      return
+    }
+    // Reuse the cluster-import handler; it merges all into one press with
+    // og:image fallback through members and combined mediaLinks.
+    await handleImportGroup(toImport)
+  }
+
   async function handleImportSelected() {
     const toImport = newsResults.filter((n) => selected.has(n.originallink))
     if (toImport.length === 0) {
@@ -731,7 +742,7 @@ export default function AdminPressListPage() {
                 })}
               </ul>
 
-              <div className="flex justify-end gap-2 border-t border-gray-200 pt-3">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-gray-200 pt-3">
                 <button
                   type="button"
                   onClick={() => setNewsOpen(false)}
@@ -742,11 +753,20 @@ export default function AdminPressListPage() {
                 </button>
                 <button
                   type="button"
+                  onClick={handleImportSelectedAsGroup}
+                  disabled={importing || selected.size < 2}
+                  className="btn-secondary"
+                  title={selected.size < 2 ? '2건 이상 선택 시 활성화' : ''}
+                >
+                  🗂 묶어서 1개로 등록 ({selected.size}건 → 1개)
+                </button>
+                <button
+                  type="button"
                   onClick={handleImportSelected}
                   disabled={importing || selected.size === 0}
                   className="btn-primary"
                 >
-                  {importing ? '등록 중…' : `선택한 ${selected.size}건 비공개로 등록`}
+                  {importing ? '등록 중…' : `각각 등록 (${selected.size}건 → ${selected.size}개)`}
                 </button>
               </div>
             </>
