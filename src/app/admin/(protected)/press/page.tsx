@@ -193,6 +193,54 @@ export default function AdminPressListPage() {
   const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null)
   const [pickerQuery, setPickerQuery] = useState('')
 
+  // Dismissed (irrelevant) URLs — persisted in localStorage so the operator
+  // doesn't have to dismiss the same article on every new search.
+  const DISMISSED_KEY = 'lkj_admin_dismissed_news_urls'
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [showHidden, setShowHidden] = useState(false)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DISMISSED_KEY)
+      if (raw) setDismissed(new Set(JSON.parse(raw) as string[]))
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  function persistDismissed(next: Set<string>) {
+    try {
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next]))
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function dismissNews(url: string) {
+    setDismissed((prev) => {
+      const next = new Set(prev)
+      next.add(url)
+      persistDismissed(next)
+      return next
+    })
+  }
+
+  function undismissNews(url: string) {
+    setDismissed((prev) => {
+      const next = new Set(prev)
+      next.delete(url)
+      persistDismissed(next)
+      return next
+    })
+  }
+
+  function clearAllDismissed() {
+    if (!confirm('숨김 처리한 기사 목록을 모두 비울까요?')) return
+    setDismissed(new Set())
+    persistDismissed(new Set())
+    toast.success('숨김 목록을 비웠어요')
+  }
+
   // Build dedup sets from existing press: URLs (from mediaLinks) + titles
   const existingUrls = new Set<string>()
   const existingTitles = new Set<string>()
@@ -550,19 +598,51 @@ export default function AdminPressListPage() {
             들어가며 어드민에서 검토 후 공개로 전환할 수 있어요. 이미 등록된 글(URL/제목 매칭)은 자동 비활성됩니다.
           </p>
 
-          {newsResults.length > 0 && (
+          {newsResults.length > 0 && (() => {
+            const hiddenCount = newsResults.filter(
+              (n) => isDuplicate(n) || dismissed.has(n.originallink),
+            ).length
+            const visibleResults = showHidden
+              ? newsResults
+              : newsResults.filter(
+                  (n) => !isDuplicate(n) && !dismissed.has(n.originallink),
+                )
+            return (
             <>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-body-small text-gray-700">
-                  결과 {newsResults.length}건 · 선택 {selected.size}건
+                  표시 {visibleResults.length}건 · 선택 {selected.size}건
+                  {hiddenCount > 0 && (
+                    <span className="ml-2 text-caption text-gray-500">
+                      ({hiddenCount}건 숨김 — 이미 추가 또는 관련 없음)
+                    </span>
+                  )}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-1 text-caption text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={showHidden}
+                      onChange={(e) => setShowHidden(e.target.checked)}
+                      className="h-3.5 w-3.5 cursor-pointer accent-red-500"
+                    />
+                    숨긴 항목 표시
+                  </label>
+                  {dismissed.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearAllDismissed}
+                      className="text-caption text-gray-500 hover:underline"
+                    >
+                      숨김 {dismissed.size}건 모두 복원
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={selectAll}
                     className="text-caption text-red-500 hover:underline"
                   >
-                    중복 제외 전체 선택
+                    전체 선택
                   </button>
                   <button
                     type="button"
@@ -575,10 +655,11 @@ export default function AdminPressListPage() {
               </div>
 
               <ul className="space-y-2 max-h-[60vh] overflow-y-auto">
-                {clusterByTitle(newsResults).map((cluster, ci) => {
+                {clusterByTitle(visibleResults).map((cluster, ci) => {
                   if (cluster.length === 1) {
                     const news = cluster[0]
                     const dup = isDuplicate(news)
+                    const isDismissed = dismissed.has(news.originallink)
                     const checked = selected.has(news.originallink)
                     const publisher = extractPublisher(news.originallink || news.link)
                     const date = parsePubDate(news.pubDate)
@@ -663,22 +744,47 @@ export default function AdminPressListPage() {
                           )}
                           {!dup && (
                             <div className="border-t border-gray-200 bg-gray-50 px-3 py-2">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  setPickerOpenFor(
-                                    pickerOpenFor === news.originallink
-                                      ? null
-                                      : news.originallink,
-                                  )
-                                  setPickerQuery('')
-                                }}
-                                className="text-caption text-blue-600 hover:underline"
-                              >
-                                📎 다른 기존 글 직접 선택해서 추가
-                                {pickerOpenFor === news.originallink ? ' ▲' : ' ▾'}
-                              </button>
+                              <div className="flex flex-wrap items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    setPickerOpenFor(
+                                      pickerOpenFor === news.originallink
+                                        ? null
+                                        : news.originallink,
+                                    )
+                                    setPickerQuery('')
+                                  }}
+                                  className="text-caption text-blue-600 hover:underline"
+                                >
+                                  📎 다른 기존 글 직접 선택해서 추가
+                                  {pickerOpenFor === news.originallink ? ' ▲' : ' ▾'}
+                                </button>
+                                {isDismissed ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      undismissNews(news.originallink)
+                                    }}
+                                    className="ml-auto text-caption text-gray-500 hover:underline"
+                                  >
+                                    ↺ 숨김 해제
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      dismissNews(news.originallink)
+                                    }}
+                                    className="ml-auto text-caption text-gray-500 hover:underline"
+                                  >
+                                    × 관련 없음으로 숨기기
+                                  </button>
+                                )}
+                              </div>
                               {pickerOpenFor === news.originallink && (
                                 <div className="mt-2 space-y-2">
                                   <input
@@ -809,15 +915,33 @@ export default function AdminPressListPage() {
                                     <p className="mt-1 text-body-small font-medium text-gray-900">
                                       {stripHtml(news.title)}
                                     </p>
-                                    <a
-                                      href={news.originallink || news.link}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="mt-0.5 inline-block truncate text-caption text-red-500 hover:underline"
-                                    >
-                                      {news.originallink || news.link} ↗
-                                    </a>
+                                    <div className="mt-0.5 flex items-center gap-2">
+                                      <a
+                                        href={news.originallink || news.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="inline-block truncate text-caption text-red-500 hover:underline"
+                                      >
+                                        {news.originallink || news.link} ↗
+                                      </a>
+                                      {!dup && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            dismissed.has(news.originallink)
+                                              ? undismissNews(news.originallink)
+                                              : dismissNews(news.originallink)
+                                          }}
+                                          className="ml-auto text-caption text-gray-500 hover:underline whitespace-nowrap"
+                                        >
+                                          {dismissed.has(news.originallink)
+                                            ? '↺ 숨김 해제'
+                                            : '× 관련 없음'}
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 </label>
                               </li>
@@ -858,7 +982,8 @@ export default function AdminPressListPage() {
                 </button>
               </div>
             </>
-          )}
+            )
+          })()}
         </section>
       )}
 
