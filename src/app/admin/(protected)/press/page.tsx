@@ -321,6 +321,18 @@ export default function AdminPressListPage() {
     }
   }
 
+  /** Try each article in date-desc order; return the first og:image found. */
+  async function firstAvailableOgImage(group: NewsItem[]): Promise<string | undefined> {
+    const sorted = [...group].sort(
+      (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
+    )
+    for (const news of sorted) {
+      const img = await fetchOgImage(news.originallink || news.link)
+      if (img) return img
+    }
+    return undefined
+  }
+
   async function handleImportGroup(group: NewsItem[]) {
     if (group.length === 0) return
     if (
@@ -338,7 +350,7 @@ export default function AdminPressListPage() {
         name: extractPublisher(news.originallink || news.link),
         url: news.originallink || news.link,
       }))
-      const thumbnail = await fetchOgImage(main.originallink || main.link)
+      const thumbnail = await firstAvailableOgImage(group)
       await createPress({
         category: '정책',
         title: cleanTitle,
@@ -348,7 +360,11 @@ export default function AdminPressListPage() {
         thumbnail,
         isPublished: false,
       })
-      toast.success(`${group.length}건을 묶어서 1개 글로 등록했어요 (비공개)`)
+      toast.success(
+        thumbnail
+          ? `${group.length}건을 묶어서 1개 글로 등록했어요 (썸네일 자동 첨부)`
+          : `${group.length}건을 묶어서 1개 글로 등록했어요 (썸네일 없음 — 수동 업로드 필요)`,
+      )
       // Remove handled items from results + selection
       const urls = new Set(group.map((g) => g.originallink))
       setNewsResults((prev) => prev.filter((n) => !urls.has(n.originallink)))
