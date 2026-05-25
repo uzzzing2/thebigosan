@@ -35,6 +35,19 @@ export function HeroSection() {
               공약 보기
             </Link>
           </div>
+
+          {/* Citizen banner — on lg, the explicit width can extend past the
+              470px column. DiceGame is later in DOM, so it stacks above and
+              visually clips the right portion (no overlap with the map). */}
+          <div className="mt-6 w-full max-w-[400px] md:max-w-[500px] lg:max-w-none lg:w-[600px]">
+            <Image
+              src="/images/citizen.png"
+              alt=""
+              width={2854}
+              height={728}
+              className="h-auto w-full"
+            />
+          </div>
         </Reveal>
 
         <Reveal className="order-1 lg:order-2" delay={0.1} duration={0.6}>
